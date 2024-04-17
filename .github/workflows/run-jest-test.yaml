@@ -29,8 +29,5 @@ jobs:
       - name: Compile TypeScript
         run: yarn tsc
 
-      - name: Build the project
-        run: yarn build
-
       - name: Run Jest tests
         run: yarn test
