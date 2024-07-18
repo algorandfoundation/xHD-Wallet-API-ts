@@ -14,7 +14,6 @@ import * as msgpack from "algo-msgpack-with-bigint"
 import Ajv from "ajv"
 import { deriveChildNodePrivate, fromSeed } from './bip32-ed25519';
 
-
 /**
  * 
  */
@@ -25,6 +24,15 @@ export enum KeyContext {
     TESTVECTOR_1 = 3,
     TESTVECTOR_2 = 4,
     TESTVECTOR_3 = 5
+}
+
+export enum BIP32DerivationType {
+    // standard Ed25519 bip32 derivations based of: https://acrobat.adobe.com/id/urn:aaid:sc:EU:04fe29b0-ea1a-478b-a886-9bb558a5242a
+    // Defines 32 bits to be zeroed from each derived zL
+    Khovratovich = 32, 
+    // Derivations based on Peikert's ammendments to the original BIP32-Ed25519
+    // Picking only 9 bits to be zeroed from each derived zL
+    Peikert = 9
 }
 
 export interface ChannelKeys {
@@ -73,29 +81,23 @@ export class ContextualCryptoApi {
      * @param rootKey - root key in extended format (kL, kR, c). It should be 96 bytes long
      * @param bip44Path - BIP44 path (m / purpose' / coin_type' / account' / change / address_index). The ' indicates that the value is hardened
      * @param isPrivate  - if true, return the private key, otherwise return the public key
-     * @returns - The public key of 32 bytes. If isPrivate is true, returns the private key instead.
+     * @returns - The extended private key (kL, kR, chainCode) or the extended public key (pub, chainCode)
      */
-    private async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true): Promise<Uint8Array> {
-        let derived: Uint8Array = deriveChildNodePrivate(Buffer.from(rootKey), bip44Path[0])
-            derived = deriveChildNodePrivate(derived, bip44Path[1])
-            derived = deriveChildNodePrivate(derived, bip44Path[2])
-            derived = deriveChildNodePrivate(derived, bip44Path[3])
+    async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true, derivationType: BIP32DerivationType): Promise<Uint8Array> {
+        await ready // libsodium
 
-            // Public Key SOFT derivations are possible without using the private key of the parent node
-            // Could be an implementation choice. 
-            // Example: 
-            // const nodeScalar: Uint8Array = derived.subarray(0, 32)
-            // const nodePublic: Uint8Array = crypto_scalarmult_ed25519_base_noclamp(nodeScalar)
-            // const nodeCC: Uint8Array = derived.subarray(64, 96)
+        // Pick `g`, which is amount of bits zeroed from each derived node
+        const g: number = derivationType === BIP32DerivationType.Peikert ? 9 : 32
 
-            // // [Public][ChainCode]
-            // const extPub: Uint8Array = new Uint8Array(Buffer.concat([nodePublic, nodeCC]))
-            // const publicKey: Uint8Array = deriveChildNodePublic(extPub, bip44Path[4]).subarray(0, 32)
+        for (let i = 0; i < bip44Path.length; i++) {
+            rootKey = await deriveChildNodePrivate(rootKey, bip44Path[i], g)
+        }
 
-            derived = deriveChildNodePrivate(derived, bip44Path[4])
+        if (isPrivate) return rootKey
 
-        // const scalar = derived.subarray(0, 32) // scalar == pvtKey
-        return isPrivate ? derived : crypto_scalarmult_ed25519_base_noclamp(derived.subarray(0, 32))
+        // extended public key
+        // [public] [nodeCC]
+        return new Uint8Array(Buffer.concat([crypto_scalarmult_ed25519_base_noclamp(rootKey.subarray(0, 32)), rootKey.subarray(64, 96)]))
     }
 
     /**
@@ -106,13 +108,14 @@ export class ContextualCryptoApi {
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
      * @returns - public key 32 bytes
      */
-    async keyGen(context: KeyContext, account:number, keyIndex: number): Promise<Uint8Array> {
+    async keyGen(context: KeyContext, account:number, keyIndex: number, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         await ready // libsodium
 
         const rootKey: Uint8Array = fromSeed(this.seed)
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
-        return await this.deriveKey(rootKey, bip44Path, false)
+        const extendedKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, false, derivationType)
+        return extendedKey.subarray(0, 32) // only public key
     }
 
     /**
@@ -130,20 +133,20 @@ export class ContextualCryptoApi {
      * @returns
      * - signature holding R and S, totally 64 bytes
      */
-    private async rawSign(bip44Path: number[], data: Uint8Array): Promise<Uint8Array> {
+    private async rawSign(bip44Path: number[], data: Uint8Array, derivationType: BIP32DerivationType): Promise<Uint8Array> {
         await ready // libsodium
 
         const rootKey: Uint8Array = fromSeed(this.seed)
-        const raw: Uint8Array = await this.deriveKey(rootKey, bip44Path, true)
+        const raw: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
         const scalar: Uint8Array = raw.slice(0, 32);
-        const c: Uint8Array = raw.slice(32, 64);
+        const kR: Uint8Array = raw.slice(32, 64);
 
         // \(1): pubKey = scalar * G (base point, no clamp)
         const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
 
         // \(2): h = hash(c || msg) mod q
-        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([c, data])))
+        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([kR, data])))
 
         // \(4):  R = r * G (base point, no clamp)
         const R = crypto_scalarmult_ed25519_base_noclamp(r)
@@ -167,10 +170,12 @@ export class ContextualCryptoApi {
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
      * @param data - data to be signed in raw bytes
      * @param metadata - metadata object that describes how `data` was encoded and what schema to use to validate against
+     * @param derivationType
+     * - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's ammendment to BIP32-Ed25519
      * 
      * @returns - signature holding R and S, totally 64 bytes
      * */ 
-    async signData(context: KeyContext, account: number, keyIndex: number, data: Uint8Array, metadata: SignMetadata): Promise<Uint8Array> {
+    async signData(context: KeyContext, account: number, keyIndex: number, data: Uint8Array, metadata: SignMetadata, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         // validate data
         const result: boolean | Error = this.validateData(data, metadata)
         
@@ -185,8 +190,7 @@ export class ContextualCryptoApi {
         await ready // libsodium
 
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
-
-        return await this.rawSign(bip44Path, data)
+        return await this.rawSign(bip44Path, data, derivationType)
     }
 
     /**
@@ -199,16 +203,18 @@ export class ContextualCryptoApi {
      * - key index. This value will be a SOFT derivation as part of BIP44.
      * @param prefixEncodedTx
      * - Encoded transaction object
+     * @param derivationType
+     * - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's ammendment to BIP32-Ed25519
      *
      * @returns sig
      * - Raw bytes signature
      */
-    async signAlgoTransaction(context: KeyContext, account: number, keyIndex: number, prefixEncodedTx: Uint8Array): Promise<Uint8Array> {
+    async signAlgoTransaction(context: KeyContext, account: number, keyIndex: number, prefixEncodedTx: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         await ready // libsodium
 
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
-        const sig =  await this.rawSign(bip44Path, prefixEncodedTx)
+        const sig =  await this.rawSign(bip44Path, prefixEncodedTx, derivationType)
 
         return sig
     }
@@ -312,13 +318,13 @@ export class ContextualCryptoApi {
      * @param meFirst - defines the order in which the keys will be considered for the shared secret. If true, our key will be used first, otherwise the other party's key will be used first
      * @returns - raw 32 bytes shared secret
      */
-    async ECDH(context: KeyContext, account: number, keyIndex: number, otherPartyPub: Uint8Array, meFirst: boolean): Promise<Uint8Array> {
+    async ECDH(context: KeyContext, account: number, keyIndex: number, otherPartyPub: Uint8Array, meFirst: boolean, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         await ready
 
         const rootKey: Uint8Array = fromSeed(this.seed)
         
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
-        const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true)
+        const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
         const scalar: Uint8Array = childKey.slice(0, 32)
 
@@ -339,6 +345,7 @@ export class ContextualCryptoApi {
             concatenation = Buffer.concat([sharedPoint, otherPartyPubCurve25519, ourPubCurve25519])
 
         }
+
         return crypto_generichash(32, new Uint8Array(concatenation))
     }
 }
