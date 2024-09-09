@@ -299,6 +299,7 @@ export class ContextualCryptoApi {
      * @returns true if signature is valid, false otherwise
      */
     async verifyWithPublicKey(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Promise<boolean> {
+        await ready // libsodium
         return crypto_sign_verify_detached(signature, message, publicKey)
     }
 
