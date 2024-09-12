@@ -1,7 +1,7 @@
 import { CryptoKX, KeyPair, crypto_kx_client_session_keys, crypto_kx_server_session_keys, crypto_scalarmult, crypto_scalarmult_ed25519_base_noclamp, crypto_secretbox_easy, crypto_secretbox_open_easy, crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair, ready, to_base64 } from "libsodium-wrappers-sumo"
 import * as bip39 from "bip39"
 import { randomBytes } from "crypto"
-import { BIP32DerivationType, ContextualCryptoApi, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, harden } from "./contextual.api.crypto"
+import { BIP32DerivationType, XHDWalletAPI, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, harden } from "./x.hd.wallet.api.crypto"
 import * as msgpack from "algo-msgpack-with-bigint"
 import { deriveChildNodePrivate, deriveChildNodePublic, fromSeed } from "./bip32-ed25519"
 import { sha512_256 } from "js-sha512"
@@ -36,7 +36,7 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 
 describe("Contextual Derivation & Signing", () => {
 
-    let cryptoService: ContextualCryptoApi
+    let cryptoService: XHDWalletAPI
     let bip39Mnemonic: string = "salon zoo engage submit smile frost later decide wing sight chaos renew lizard rely canal coral scene hobby scare step bus leaf tobacco slice"
     let seed: Buffer
 
@@ -45,7 +45,7 @@ describe("Contextual Derivation & Signing", () => {
     })
     
 	beforeEach(() => {
-        cryptoService = new ContextualCryptoApi(seed)
+        cryptoService = new XHDWalletAPI(seed)
     })
 
 	afterEach(() => {})
@@ -393,11 +393,11 @@ describe("Contextual Derivation & Signing", () => {
 
         describe("ECDH cases", () => {
             // Making sure Alice & Bob Have different root keys 
-            let aliceCryptoService: ContextualCryptoApi
-            let bobCryptoService: ContextualCryptoApi
+            let aliceCryptoService: XHDWalletAPI
+            let bobCryptoService: XHDWalletAPI
             beforeEach(() => {
-                aliceCryptoService = new ContextualCryptoApi(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", ""))
-                bobCryptoService = new ContextualCryptoApi(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", ""))
+                aliceCryptoService = new XHDWalletAPI(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", ""))
+                bobCryptoService = new XHDWalletAPI(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", ""))
             })
 
             it("\(OK) ECDH", async () => {

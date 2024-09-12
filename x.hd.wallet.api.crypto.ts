@@ -67,7 +67,7 @@ function GetBIP44PathFromContext(context: KeyContext, account:number, key_index:
 export const ERROR_BAD_DATA: Error = new Error("Invalid Data")
 export const ERROR_TAGS_FOUND: Error = new Error("Transactions tags found")
 
-export class ContextualCryptoApi {
+export class XHDWalletAPI {
 
     // Only for testing, seed shouldn't be persisted 
     constructor(private readonly seed: Buffer) {
