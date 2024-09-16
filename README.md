@@ -9,22 +9,201 @@ The implementation is based on the [BIP32-ed25519](https://acrobat.adobe.com/id/
 It offers 2 modes to derive keys.
 
 - Khovratovich; Standard mode according to the paper above.
-- Peikert's: Ammendment to the standard mode to allow for a more secure derivation of keys by giving more entropy to `zL`. This is the **default** mode of this library
+- Peikert's: Amendment to the standard mode to allow for a more secure derivation of keys by giving more entropy to `zL`. This is the **default** mode of this library
 
-## Sensitive Data
+## Usage
+
+Initialize the library:
+
+```ts
+const cryptoService = new XHDWalletAPI();
+```
 
 Instances of the `XHDWalletAPI` class do not persist sensitive data. However, many methods of the class require the `rootKey` be passed as a parameter. The responsibility of handling the `seed` and derived `rootKey` in a secure manner is on the developer of the consuming application. Variables used to hold these sensitive values should be zeroed as soon as they are no longer needed.
 
 ```ts
 async function example() {
-  const seed = getSeed();
-  const rootKey = fromSeed(seed);
-  seed.fill(0);
   const cryptoService = new XHDWalletAPI();
-  const key = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0);
-  rootKey.fill(0);
+  const seed = getSeed(); // Your secure seed-retrieval API
+  const rootKey = cryptoService.fromSeed(seed);
+  seed.fill(0); // Zero out the seed
+  // ... further activity
+  rootKey.fill(0); // Zero out the rootKey
 }
 ```
+
+Using a BIP39 library, a 24 word mnemonic can be turned into a seed as follows:
+
+```ts
+const rootKey = cryptoService.fromSeed(
+  bip39.mnemonicToSeedSync(
+    "salon zoo engage submit smile frost later decide wing sight chaos renew lizard rely canal coral scene hobby scare step bus leaf tobacco slice",
+    ""
+  )
+);
+```
+
+#### Public Key Generation
+
+Now you can generate keys using a BIP-44 derivation path:
+
+```ts
+const pk = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0);
+```
+
+KeyContext.Address corresponds to the cointype `283'`, i.e. that of Algorand. They are meant to be used for receiving and spending funds. If your goal is to use the generated keys for identity-related applications, you can use `KeyContext.Identity` instead, which corresponds to the cointype `0'` as in accordance with W3C standards.
+
+#### Signing Algorand transactions and arbitrary data
+
+To sign an Algorand transaction, you can use the signAlgoTransaction API:
+
+```ts
+const prefixEncodedTx = new Uint8Array(Buffer.from('VFiJo2FtdM0D6KNmZWXNA+iiZnbOAkeSd6NnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds4CR5Zfo3JjdsQgYv6DK3rRBUS+gzemcENeUGSuSmbne9eJCXZbRrV2pvOjc25kxCBi/oMretEFRL6DN6ZwQ15QZK5KZud714kJdltGtXam86R0eXBlo3BheQ==', 'base64'))
+const signature = cryptoService.signAlgoTransaction(KeyContext.Address, account: 0, change: 0, keyIndex: 0, prefixEncodedTx: prefixEncodedTx)
+```
+
+where prefixEncodedTx is a transaction that has been compiled with the SDK's transaction builder. The signature returned can be verified against the public key:
+
+```ts
+const isValid: boolean = await cryptoService.verifyWithPublicKey(
+  signature,
+  prefixEncodedTx,
+  pk
+);
+```
+
+It is also possible to sign arbitrary data using signData. You need to specify a JSON schema and encoding type (none, base64, msgpack).
+
+For example, signing 32 bytes challenge conforming to the auth.request.json schema encoded with base64:
+
+```ts
+const challenge: Uint8Array = new Uint8Array(randomBytes(32));
+
+// read auth schema file for authentication. 32 bytes challenge to sign
+const authSchema: JSONSchemaType<any> = JSON.parse(
+  readFileSync(path.resolve(__dirname, "schemas/auth.request.json"), "utf8")
+);
+const metadata: SignMetadata = {
+  encoding: Encoding.BASE64,
+  schema: authSchema,
+};
+const base64Challenge: string = Buffer.from(challenge).toString("base64");
+
+const encoded: Uint8Array = new Uint8Array(Buffer.from(base64Challenge));
+
+const signature: Uint8Array = await cryptoService.signData(
+  rootKey,
+  KeyContext.Address,
+  0,
+  0,
+  encoded,
+  metadata
+);
+
+const isValid: boolean = await cryptoService.verifyWithPublicKey(
+  signature,
+  encoded,
+  await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
+);
+```
+
+#### Elliptic-Curve Diffie-Hellman for generating shared secrets and encrypting messages
+
+You can generate a shared secret with someone using ECDH. They will need to provide you with their Ed25519 public key, as provided by keyGen. You will also need to agree on an "order" of whose public key will be concatenated first and whose second.
+
+```ts
+const sharedSecret: Uint8Array = await cryptoService.ECDH(
+  aliceRootKey,
+  KeyContext.Identity,
+  0,
+  0,
+  bobPublicKey,
+  true // meFirst = true
+);
+```
+
+On Bob's end:
+
+```ts
+const sharedSecret: Uint8Array = await cryptoService.ECDH(
+  bobRootKey,
+  KeyContext.Identity,
+  0,
+  0,
+  alicePublicKey,
+  false // meFirst = false
+);
+```
+
+The shared secret will be the same and can be used as input for e.g. LibSodium's crypto_secretbox API.
+
+```ts
+import {
+  crypto_secretbox_easy,
+  crypto_secretbox_open_easy,
+  crypto_secretbox_NONCEBYTES,
+  randombytes_buf,
+  ready,
+} from "libsodium-wrappers-sumo";
+
+await ready;
+
+const message: Uint8Array = new Uint8Array(Buffer.from("Hello, Bob!"));
+const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES);
+// A randomly generated nonce value, crypto_secretbox_NONCEBYTES long (24 bytes). Can be public, just needs to be randomly generated and not re-used.
+
+// encrypt message into random-looking bytes
+const cipherText: Uint8Array = crypto_secretbox_easy(
+  message,
+  nonce,
+  sharedSecret
+);
+
+// send the nonce and the cipherText over from Alice to Bob using an unencrypted broadcasting channel
+// <-- send(nonce, ciphertext) -->
+
+//decrypt ciphertext back into the message
+const plainText: Uint8Array = crypto_secretbox_open_easy(
+  cipherText,
+  nonce,
+  sharedSecret
+);
+
+// plainText => "Hello, Bob!"
+```
+
+#### Deriving Child Public Keys
+
+You can also utilize `deriveKey` to derive extended public keys by setting `isPrivate: false`, thus allowing `deriveChildNodePublic` to softly derive `N` descendant public keys / addresses using a single extended key / root. A typical use case is for producing one-time addresses, either to calculate for yourself in an insecure environment, or to calculate someone else's one time addresses.
+
+> [!IMPORTANT]
+> We distinguish between the 32 byte public key (pk) and the 64 byte extended public key (xpk) where xpk is used to derive child nodes in `deriveChildNodePublic` and `deriveChildNodePrivate`. The xpk is a concatenation of the pk and the 32 byte chaincode which serves as a key for the HMAC functions.
+>
+> **xpk should be kept secret** unless you want to allow someone else to derive descendant keys.
+
+Child public key derivation is relevant at the unhardened levels, e.g. in BIP44 get it at the account level and then derive publicly for change and keyindex.
+
+The following provides the extended public key for `m'/44'/283'/0'/0`, i.e. account 0, change 0.
+
+```ts
+const xPk: Uint8Array = await cryptoService.deriveKey(
+  rootKey,
+  [harden(44), harden(283), harden(0), 0],
+  false,
+  BIP32DerivationType.Peikert
+);
+```
+
+With this, a counterpart can derive the descendant keys. For example,
+
+```ts
+const derivedKey: Uint8Array = new Uint8Array(
+  await deriveChildNodePublic(walletRoot, 1)
+);
+const pk = derivedKey.slice(0, 32);
+```
+
+corresponds to the pk of `m'/44'/283'/0'/0/1`.
 
 ## Run
 
