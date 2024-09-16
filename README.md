@@ -11,6 +11,21 @@ It offers 2 modes to derive keys.
 - Khovratovich; Standard mode according to the paper above.
 - Peikert's: Ammendment to the standard mode to allow for a more secure derivation of keys by giving more entropy to `zL`. This is the **default** mode of this library
 
+## Sensitive Data
+
+Instances of the `XHDWalletAPI` class do not persist sensitive data. However, many methods of the class require the `rootKey` be passed as a parameter. The responsibility of handling the `seed` and derived `rootKey` in a secure manner is on the developer of the consuming application. Variables used to hold these sensitive values should be zeroed as soon as they are no longer needed.
+
+```ts
+async function example() {
+  const seed = getSeed();
+  const rootKey = fromSeed(seed);
+  seed.fill(0);
+  const cryptoService = new XHDWalletAPI();
+  const key = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0);
+  rootKey.fill(0);
+}
+```
+
 ## Run
 
 ```shell

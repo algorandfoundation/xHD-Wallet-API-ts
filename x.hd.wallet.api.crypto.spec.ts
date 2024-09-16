@@ -38,14 +38,14 @@ describe("Contextual Derivation & Signing", () => {
 
     let cryptoService: XHDWalletAPI
     let bip39Mnemonic: string = "salon zoo engage submit smile frost later decide wing sight chaos renew lizard rely canal coral scene hobby scare step bus leaf tobacco slice"
-    let seed: Buffer
+    let rootKey: Uint8Array
 
     beforeAll(() => {
-        seed = bip39.mnemonicToSeedSync(bip39Mnemonic, "")
+        rootKey = fromSeed( bip39.mnemonicToSeedSync(bip39Mnemonic, ""))
     })
     
 	beforeEach(() => {
-        cryptoService = new XHDWalletAPI(seed)
+        cryptoService = new XHDWalletAPI()
     })
 
 	afterEach(() => {})
@@ -60,11 +60,9 @@ describe("Contextual Derivation & Signing", () => {
     describe("\(JS Library) Reference Implementation alignment with known BIP32-Ed25519 JS LIB", () => {
         it("\(OK) BIP32-Ed25519 derive key m'/44'/283'/0'/0/0", async () => {
             await ready
-            const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
-
-            const rooKey: Uint8Array = fromSeed(seed)
+            const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rooKey), harden(44))
+            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 0)
@@ -77,11 +75,9 @@ describe("Contextual Derivation & Signing", () => {
 
         it("\(OK) BIP32-Ed25519 derive key m'/44'/283'/0'/0/1", async () => {
             await ready
-            const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 1, BIP32DerivationType.Khovratovich)
-
-            const rooKey: Uint8Array = fromSeed(seed)
+            const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 1, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rooKey), harden(44))
+            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 0)
@@ -94,11 +90,9 @@ describe("Contextual Derivation & Signing", () => {
 
         it("\(OK) BIP32-Ed25519 derive PUBLIC key m'/44'/283'/1'/0/1", async () => {
             await ready
-            const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 1, 1, BIP32DerivationType.Khovratovich)
-
-            const rooKey: Uint8Array = fromSeed(seed)
+            const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 1, 1, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rooKey), harden(44))
+            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(1))
 
@@ -119,11 +113,9 @@ describe("Contextual Derivation & Signing", () => {
 
         it("\(OK) BIP32-Ed25519 derive PUBLIC key m'/44'/0'/1'/0/2", async () => {
             await ready
-            const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 1, 2, BIP32DerivationType.Khovratovich)
-
-            const rooKey: Uint8Array = fromSeed(seed)
+            const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 1, 2, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rooKey), harden(44))
+            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
             derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(1))
 
@@ -144,7 +136,6 @@ describe("Contextual Derivation & Signing", () => {
     })
 
     it("\(OK) Root Key", async () => {
-        const rootKey: Uint8Array = fromSeed(seed)
         expect(rootKey.length).toBe(96)
         expect(Buffer.from(rootKey)).toEqual(Buffer.from("a8ba80028922d9fcfa055c78aede55b5c575bcd8d5a53168edf45f36d9ec8f4694592b4bc892907583e22669ecdf1b0409a9f3bd5549f2dd751b51360909cd05796b9206ec30e142e94b790a98805bf999042b55046963174ee6cee2d0375946", "hex"))
     })
@@ -153,17 +144,17 @@ describe("Contextual Derivation & Signing", () => {
             describe("Addresses", () => {
                 describe("Soft Derivations", () => {
                     it("\(OK) Derive m'/44'/283'/0'/0/0 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 0)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
                         expect(key).toEqual(new Uint8Array(Buffer.from("7bda7ac12627b2c259f1df6875d30c10b35f55b33ad2cc8ea2736eaa3ebcfab9", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/283'/0'/0/1 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 1)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 1)
                         expect(key).toEqual(new Uint8Array(Buffer.from("5bae8828f111064637ac5061bd63bc4fcfe4a833252305f25eeab9c64ecdf519", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/283'/0'/0/2 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 2)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 2)
                         expect(key).toEqual(new Uint8Array(Buffer.from("00a72635e97cba966529e9bfb4baf4a32d7b8cd2fcd8e2476ce5be1177848cb3", "hex")))
                     })
                     
@@ -171,17 +162,17 @@ describe("Contextual Derivation & Signing", () => {
                 
                 describe("Hard Derivations", () => {
                     it("\(OK) Derive m'/44'/283'/1'/0/0 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 1, 0)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 1, 0)
                         expect(key).toEqual(new Uint8Array(Buffer.from("358d8c4382992849a764438e02b1c45c2ca4e86bbcfe10fd5b963f3610012bc9", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/283'/2'/0/1 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 2, 1)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 2, 1)
                         expect(key).toEqual(new Uint8Array(Buffer.from("1f0f75fbbca12b22523973191061b2f96522740e139a3420c730717ac5b0dfc0", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/283'/3'/0/0 Algorand Address Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 3, 0)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 3, 0)
                         expect(key).toEqual(new Uint8Array(Buffer.from("f035316f915b342ea5fe78dccb59d907b93805732219d436a1bd8488ff4e5b1b", "hex")))
                     })
                 })
@@ -190,29 +181,29 @@ describe("Contextual Derivation & Signing", () => {
             describe("Identities", () => {
                 describe("Soft Derivations", () => {
                     it("\(OK) Derive m'/44'/0'/0'/0/0 Identity Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 0, 0)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 0, 0)
                         expect(key).toEqual(new Uint8Array(Buffer.from("ff8b1863ef5e40d0a48c245f26a6dbdf5da94dc75a1851f51d8a04e547bd5f5a", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/0'/0'/0/1 Identity Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 0, 1)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 0, 1)
                         expect(key).toEqual(new Uint8Array(Buffer.from("2b46c2af0890493e486049d456509a0199e565b41a5fb622f0ea4b9337bd2b97", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/0'/0'/0/2 Identity Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 0, 2)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 0, 2)
                         expect(key).toEqual(new Uint8Array(Buffer.from("2713f135f19ef3dcfca73cb536b1e077b1165cd0b7bedbef709447319ff0016d", "hex")))
                     })
                 })
                 
                 describe("Hard Derivations", () => {
                     it("\(OK) Derive m'/44'/0'/1'/0/0 Identity Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 1, 0)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 1, 0)
                         expect(key).toEqual(new Uint8Array(Buffer.from("232847ae1bb95babcaa50c8033fab98f59e4b4ad1d89ac523a90c830e4ceee4a", "hex")))
                     })
                     
                     it("\(OK) Derive m'/44'/0'/2'/0/1 Identity Key", async () => {
-                        const key: Uint8Array = await cryptoService.keyGen(KeyContext.Identity, 2, 1)
+                        const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 2, 1)
                         expect(key).toEqual(new Uint8Array(Buffer.from("8f68b6572860d84e8a41e38db1c8c692ded5eb291846f2e5bbfde774a9c6d16e", "hex")))
                     })
                 })
@@ -229,10 +220,10 @@ describe("Contextual Derivation & Signing", () => {
 
                 const encoded: Uint8Array = new Uint8Array(Buffer.from(base64Challenge))
 
-                const signature: Uint8Array = await cryptoService.signData(KeyContext.Address,0, 0, encoded,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
                 expect(signature).toHaveLength(64)
 
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(KeyContext.Address, 0, 0))
+                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
                 expect(isValid).toBe(true)
             })
 
@@ -244,10 +235,10 @@ describe("Contextual Derivation & Signing", () => {
                 const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: authSchema }
                 const encoded: Uint8Array = msgpack.encode(challenge)
 
-                const signature: Uint8Array = await cryptoService.signData(KeyContext.Address,0, 0, encoded,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
                 expect(signature).toHaveLength(64)
 
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(KeyContext.Address, 0, 0))
+                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
                 expect(isValid).toBe(true)
             })
 
@@ -258,15 +249,15 @@ describe("Contextual Derivation & Signing", () => {
                 const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "schemas/auth.request.json"), "utf8"))
                 const metadata: SignMetadata = { encoding: Encoding.NONE, schema: authSchema }
 
-                const signature: Uint8Array = await cryptoService.signData(KeyContext.Address,0, 0, challenge,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, challenge,  metadata)
                 expect(signature).toHaveLength(64)
 
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, challenge, await cryptoService.keyGen(KeyContext.Address, 0, 0))
+                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, challenge, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
                 expect(isValid).toBe(true)
             })
 
             it("\(OK) Sign Arbitrary Message against Schema, encoded base64", async () => {
-                const firstKey: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 0)
+                const firstKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
     
                 const message = {
                     letter: "Hello World"
@@ -286,7 +277,7 @@ describe("Contextual Derivation & Signing", () => {
 
                 const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: jsonSchema } 
 
-                const signature: Uint8Array = await cryptoService.signData(KeyContext.Address,0, 0, encoded,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
                 expect(signature).toHaveLength(64)
     
                 const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, firstKey)
@@ -294,7 +285,7 @@ describe("Contextual Derivation & Signing", () => {
             })
 
             it("\(OK) Sign Arbitrary Message against Schema, encoded msgpack", async () => {
-                const firstKey: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 0)
+                const firstKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
 
                 const message = {
                     letter: "Hello World"
@@ -314,7 +305,7 @@ describe("Contextual Derivation & Signing", () => {
 
                 const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: jsonSchema }
 
-                const signature: Uint8Array = await cryptoService.signData(KeyContext.Address,0, 0, encoded,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
                 expect(signature).toHaveLength(64)
 
                 const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, firstKey)
@@ -334,7 +325,7 @@ describe("Contextual Derivation & Signing", () => {
                 }
 
                 const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: jsonSchema } 
-                expect(cryptoService.signData(KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
+                expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
             })
 
             it("\(FAIL) Signing attempt fails because of invalid data against Schema, encoded msgpack", async () => {
@@ -350,42 +341,42 @@ describe("Contextual Derivation & Signing", () => {
                 }
 
                 const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: jsonSchema }
-                expect(cryptoService.signData(KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
+                expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
             })
 
             describe("Reject Regular Transaction Signing. IF TAG Prexies are present signing must fail", () => {
                 it("\(FAIL) [TX] Tag", async () => {
                     const transaction: Buffer = Buffer.concat([Buffer.from("TX"), msgpack.encode(randomBytes(64))])
                     const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
+                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
                 })
 
                 it("\(FAIL) [MX] Tag", async () => {
                     const transaction: Buffer = Buffer.concat([Buffer.from("MX"), msgpack.encode(randomBytes(64))])
                     const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
+                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
                 })
 
                 it("\(FAIL) [Program] Tag", async () => {
                     const transaction: Buffer = Buffer.concat([Buffer.from("Program"), msgpack.encode(randomBytes(64))])
                     const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
+                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
                 })
 
                 it("\(FAIL) [progData] Tag", async () => {
                     const transaction: Buffer = Buffer.concat([Buffer.from("ProgData"), msgpack.encode(randomBytes(64))])
                     const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
+                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
                 })
             })
         })
 
         describe("signing transactions", () => {
             it("\(OK) Sign Transaction", async () => {
-                const key: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
+                const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
                 // this transaction wes successfully submitted to the network https://testnet.explorer.perawallet.app/tx/UJG3NVCSCW5A63KPV35BPAABLXMXTTEM2CVUKNS4EML3H3EYGMCQ/
                 const prefixEncodedTx = new Uint8Array(Buffer.from('VFiJo2FtdM0D6KNmZWXNA+iiZnbOAkeSd6NnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds4CR5Zfo3JjdsQgYv6DK3rRBUS+gzemcENeUGSuSmbne9eJCXZbRrV2pvOjc25kxCBi/oMretEFRL6DN6ZwQ15QZK5KZud714kJdltGtXam86R0eXBlo3BheQ==', 'base64'))
-                const sig = await cryptoService.signAlgoTransaction(KeyContext.Address, 0, 0, prefixEncodedTx, BIP32DerivationType.Khovratovich)
+                const sig = await cryptoService.signAlgoTransaction(rootKey, KeyContext.Address, 0, 0, prefixEncodedTx, BIP32DerivationType.Khovratovich)
                 expect(encodeAddress(Buffer.from(key))).toEqual("ML7IGK322ECUJPUDG6THAQ26KBSK4STG4555PCIJOZNUNNLWU3Z3ZFXITA")
                 expect(nacl.sign.detached.verify(prefixEncodedTx, sig, key)).toBe(true)
             })
@@ -393,34 +384,34 @@ describe("Contextual Derivation & Signing", () => {
 
         describe("ECDH cases", () => {
             // Making sure Alice & Bob Have different root keys 
-            let aliceCryptoService: XHDWalletAPI
-            let bobCryptoService: XHDWalletAPI
+            let aliceRootKey: Uint8Array
+            let bobRootKey: Uint8Array
             beforeEach(() => {
-                aliceCryptoService = new XHDWalletAPI(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", ""))
-                bobCryptoService = new XHDWalletAPI(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", ""))
+                aliceRootKey = fromSeed(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", ""))
+                bobRootKey = fromSeed(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", ""))
             })
 
             it("\(OK) ECDH", async () => {
-                const aliceKey: Uint8Array = await aliceCryptoService.keyGen(KeyContext.Identity, 0, 0)
-                const bobKey: Uint8Array = await bobCryptoService.keyGen(KeyContext.Identity, 0, 0)
+                const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
+                const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
 
-                const aliceSharedSecret: Uint8Array = await aliceCryptoService.ECDH(KeyContext.Identity, 0, 0, bobKey, true)
-                const bobSharedSecret: Uint8Array = await bobCryptoService.ECDH(KeyContext.Identity, 0, 0, aliceKey, false)
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, true)
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, false)
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
 
-                const aliceSharedSecret2: Uint8Array = await aliceCryptoService.ECDH(KeyContext.Identity, 0, 0, bobKey, false)
-                const bobSharedSecret2: Uint8Array = await bobCryptoService.ECDH(KeyContext.Identity, 0, 0, aliceKey, true)
+                const aliceSharedSecret2: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, false)
+                const bobSharedSecret2: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, true)
                 expect(aliceSharedSecret2).toEqual(bobSharedSecret2)
                 expect(aliceSharedSecret2).not.toEqual(aliceSharedSecret)
 
             })
     
             it("\(OK) ECDH, Encrypt and Decrypt", async () => {
-                const aliceKey: Uint8Array = await aliceCryptoService.keyGen(KeyContext.Identity, 0, 0)
-                const bobKey: Uint8Array = await bobCryptoService.keyGen(KeyContext.Identity, 0, 0)
+                const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
+                const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
     
-                const aliceSharedSecret: Uint8Array = await aliceCryptoService.ECDH(KeyContext.Identity, 0, 0, bobKey, true)
-                const bobSharedSecret: Uint8Array = await bobCryptoService.ECDH(KeyContext.Identity, 0, 0, aliceKey, false)
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, true)
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, false)
 
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
     
@@ -478,7 +469,6 @@ describe("Contextual Derivation & Signing", () => {
         it("\(FAIL) Should fail if during derivation scalar >= 2^255", async () => {
             await ready // libsodium ready
 
-            const rootKey = fromSeed(seed)
             // 44'/283'/0'/0
             const bip44Path = [harden(44), harden(283), harden(0), 0, 0]
 
@@ -512,7 +502,7 @@ describe("Contextual Derivation & Signing", () => {
         it("\(OK) From m'/44'/283'/0'/0 root level (excluding address index) derive N keys with only public information", async () => {
             
             // wallet level m'/44'/283'/0'/0 root; node derivation before address_index 
-            const walletRoot: Uint8Array = await cryptoService.deriveKey(fromSeed(seed), [harden(44), harden(283), harden(0), 0], false, BIP32DerivationType.Peikert)
+            const walletRoot: Uint8Array = await cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0], false, BIP32DerivationType.Peikert)
 
             // should be able to derive all public keys from this root without knowing private information
             // since these are SOFTLY derived
@@ -525,7 +515,7 @@ describe("Contextual Derivation & Signing", () => {
                 const derivedKey: Uint8Array = new Uint8Array(await deriveChildNodePublic(walletRoot, i, BIP32DerivationType.Peikert)) // g == 9
             
                 // Deriving from my own wallet where i DO have private information
-                const myKey: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, i, BIP32DerivationType.Peikert)
+                const myKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, i, BIP32DerivationType.Peikert)
                 
                 // they should match 
                 // derivedKey.subarray(0, 32) ==  public key (excluding chaincode)
@@ -536,7 +526,7 @@ describe("Contextual Derivation & Signing", () => {
         it("\(FAIL) From m'/44'/283'/0'/0' root level (excluding address index) should not be able to derive correct addresses from a hardened derivation", async () => {
             
             // wallet level m'/44'/283'/0'/0' root; node derivation before address_index 
-            const walletRoot: Uint8Array = await cryptoService.deriveKey(fromSeed(seed), [harden(44), harden(283), harden(0), harden(0)], false, BIP32DerivationType.Peikert)
+            const walletRoot: Uint8Array = await cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), harden(0)], false, BIP32DerivationType.Peikert)
 
 
             const numPublicKeysToDerive: number = 10
@@ -544,7 +534,7 @@ describe("Contextual Derivation & Signing", () => {
                 const derivedKey: Uint8Array = new Uint8Array(await deriveChildNodePublic(walletRoot, i, BIP32DerivationType.Peikert)) // g == 9
             
                 // Deriving from my own wallet where i DO have private information
-                const myKey: Uint8Array = await cryptoService.keyGen(KeyContext.Address, 0, i, BIP32DerivationType.Peikert)
+                const myKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, i, BIP32DerivationType.Peikert)
                 
                 // they should NOT match  since the `change` level (as part of BIP44) was hardened
                 // derivedKey.subarray(0, 32) ==  public key (excluding chaincode)
