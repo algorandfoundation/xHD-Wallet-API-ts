@@ -2,7 +2,8 @@
   "name": "xhd-wallet-api",
   "version": "0.0.1",
   "description": "A Typescript implementation of BIP-32 Ed25519 for Algorand ARC-52.",
-  "main": "dist/index.js",
+  "exports": "./dist/index.js",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "test": "jest --verbose",
@@ -15,14 +16,15 @@
     "@types/jest": "^29.5.5",
     "@types/libsodium-wrappers-sumo": "^0.7.7",
     "@types/node": "^20.7.1",
+    "semantic-release": "^24.1.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^12.0.1",
     "ts-jest": "^29.1.1",
     "tweetnacl": "^1.0.3",
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/npm": "^12.0.1",
     "ajv": "^8.12.0",
     "algo-msgpack-with-bigint": "^2.1.1",
     "bip32-ed25519": "^0.0.4",
@@ -32,7 +34,6 @@
     "jest": "^29.7.0",
     "js-sha512": "^0.8.0",
     "libsodium-wrappers-sumo": "^0.7.13",
-    "semantic-release": "^24.1.1",
     "ts-custom-error": "^3.2.0",
     "ts-log": "^2.2.4"
   },
