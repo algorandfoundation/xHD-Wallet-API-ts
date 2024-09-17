@@ -171,7 +171,7 @@ export async function deriveChildNodePrivate(
  * @param g - Defines how many bits to zero in the left 32 bytes of the child key. Standard BIP32-ed25519 derivations use 32 bits. 
  * @returns - 64 bytes, being the 32 bytes of the child key (the new public key) followed by the 32 bytes of the chain code
  */
-export async function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Promise<Uint8Array> {
+export function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Uint8Array {
     if (index > 0x80000000) throw new Error('can not derive public key with harden')
 
     const pk: Buffer = Buffer.from(extendedKey.subarray(0, 32))
