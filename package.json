@@ -45,9 +45,6 @@
     ],
     "rootDir": ".",
     "testRegex": ".spec.ts$",
-    "transform": {
-      ".+\\.(t|j)s$": "ts-jest"
-    },
     "coverageDirectory": "../test/coverage",
     "collectCoverageFrom": [
       "**/!(*.module|*.interface|main|repl|exception.filter|logging.interceptor).{ts,js}"
@@ -55,7 +52,18 @@
     "coveragePathIgnorePatterns": [
       "/src/migration/"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    }
   },
   "repository": "git@github.com:algorandfoundation/xHD-Wallet-API-ts.git",
   "files": [
