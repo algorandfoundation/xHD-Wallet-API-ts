@@ -1,0 +1,41 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+      - release
+  workflow_dispatch:
+
+concurrency: release
+
+permissions:
+  contents: write
+  issues: write
+  checks: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      # semantic-release needs node 20
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+
+      - name: Install dependencies to get semantic release components and plugins
+        run: npm ci --ignore-scripts
+
+      - name: "Build"
+        run: npm run build
+
+      - name: "Semantic release"
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

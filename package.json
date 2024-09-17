@@ -53,6 +53,11 @@
     "testEnvironment": "node"
   },
   "repository": "git@github.com:algorandfoundation/bip32-ed25519-ts.git",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "release": {
     "plugins": [
       "@semantic-release/commit-analyzer",
