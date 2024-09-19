@@ -19,11 +19,7 @@ import { deriveChildNodePrivate } from './bip32-ed25519';
  */
 export enum KeyContext {
     Address = 0,
-    Identity = 1,
-    Cardano = 2,
-    TESTVECTOR_1 = 3,
-    TESTVECTOR_2 = 4,
-    TESTVECTOR_3 = 5
+    Identity = 1
 }
 
 export enum BIP32DerivationType {
