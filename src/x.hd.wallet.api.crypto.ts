@@ -12,7 +12,7 @@ import {
 } from 'libsodium-wrappers-sumo';
 import * as msgpack from "algo-msgpack-with-bigint"
 import Ajv from "ajv"
-import { deriveChildNodePrivate } from './bip32-ed25519.js';
+import { deriveChildNodePrivate } from './bip32-ed25519';
 
 /**
  * 
