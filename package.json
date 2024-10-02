@@ -10,7 +10,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsc && tsc-alias",
+    "build": "tsc && tsc-alias -p tsconfig.json -f",
     "test": "jest --verbose",
     "test:cov": "jest --coverage"
   },
