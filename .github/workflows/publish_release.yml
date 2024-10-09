@@ -50,7 +50,7 @@ jobs:
       - name: "Semantic release"
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Merge Release -> Trunk
