@@ -1,9 +1,16 @@
 {
-  "name": "bip32-ed25519-ts",
+  "name": "xhd-wallet-api",
   "version": "0.0.1",
-  "description": "A Typescript implementation of BIP-32 Ed25519 for Algorand ARC-52.",
-  "main": "index.js",
+  "description": "A Typescript implementation of Algorand ARC-52 extended hierarchical determinstic wallets.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "type": "module",
   "scripts": {
+    "build": "tsc && tsc-alias -p tsconfig.json -f",
     "test": "jest --verbose",
     "test:cov": "jest --coverage"
   },
@@ -11,17 +18,22 @@
   "author": "Algorand Foundation",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^12.0.1",
     "@types/jest": "^29.5.5",
     "@types/libsodium-wrappers-sumo": "^0.7.7",
     "@types/node": "^20.7.1",
+    "semantic-release": "^24.1.1",
+    "bip32-ed25519": "^0.0.4",
     "ts-jest": "^29.1.1",
+    "tsc-alias": "^1.8.10",
     "tweetnacl": "^1.0.3",
     "typescript": "^5.2.2"
   },
   "dependencies": {
     "ajv": "^8.12.0",
     "algo-msgpack-with-bigint": "^2.1.1",
-    "bip32-ed25519": "^0.0.4",
     "bip39": "^3.1.0",
     "bn.js": "^5.2.1",
     "hi-base32": "^0.5.1",
@@ -39,9 +51,6 @@
     ],
     "rootDir": ".",
     "testRegex": ".spec.ts$",
-    "transform": {
-      ".+\\.(t|j)s$": "ts-jest"
-    },
     "coverageDirectory": "../test/coverage",
     "collectCoverageFrom": [
       "**/!(*.module|*.interface|main|repl|exception.filter|logging.interceptor).{ts,js}"
@@ -49,7 +58,54 @@
     "coveragePathIgnorePatterns": [
       "/src/migration/"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    }
   },
-  "repository": "git@github.com:algorandfoundation/bip32-ed25519-ts.git"
+  "repository": "git@github.com:algorandfoundation/xHD-Wallet-API-ts.git",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "release": {
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "CHANGELOG.md",
+            "package.json"
+          ],
+          "message": "chore(release): xHD Wallet API \n\n${nextRelease.notes}"
+        }
+      ],
+      [
+        "@semantic-release/github",
+        {
+          "successComment": false
+        }
+      ]
+    ],
+    "branches": [
+      "release/*",
+      {
+        "name": "main",
+        "prerelease": "canary"
+      }
+    ]
+  }
 }
