@@ -10,7 +10,7 @@ import { JSONSchemaType } from "ajv"
 import { readFileSync } from "fs"
 import path from "path"
 import nacl from "tweetnacl"
-const libBip32Ed25519 = require('bip32-ed25519')
+const otherLibBip32Ed25519 = require('bip32-ed25519')
 
 function encodeAddress(publicKey: Buffer): string {
     const keyHash: string = sha512_256.create().update(publicKey).hex()
@@ -62,11 +62,11 @@ describe("Contextual Derivation & Signing", () => {
             await ready
             const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 0)
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 0)
+            let derivedKey: Uint8Array = otherLibBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(283))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(0))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, 0)
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, 0)
 
             const scalar = derivedKey.subarray(0, 32) // scalar == pvtKey
             const derivedPub: Uint8Array = crypto_scalarmult_ed25519_base_noclamp(scalar) // calculate public key
@@ -77,11 +77,11 @@ describe("Contextual Derivation & Signing", () => {
             await ready
             const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 1, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 0)
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, 1)
+            let derivedKey: Uint8Array = otherLibBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(283))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(0))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, 0)
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, 1)
 
             const scalar = derivedKey.subarray(0, 32) // scalar == pvtKey
             const derivedPub: Uint8Array = crypto_scalarmult_ed25519_base_noclamp(scalar) // calculate public key
@@ -92,9 +92,9 @@ describe("Contextual Derivation & Signing", () => {
             await ready
             const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 1, 1, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(283))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(1))
+            let derivedKey: Uint8Array = otherLibBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(283))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(1))
 
             // ext private => ext public format!
             const nodeScalar: Uint8Array = derivedKey.subarray(0, 32)
@@ -104,8 +104,8 @@ describe("Contextual Derivation & Signing", () => {
             // [Public][ChainCode]
             const extPub: Buffer = Buffer.concat([nodePublic, nodeCC])
             
-            derivedKey = libBip32Ed25519.derivePublic(extPub, 0)
-            derivedKey = libBip32Ed25519.derivePublic(derivedKey, 1)
+            derivedKey = otherLibBip32Ed25519.derivePublic(extPub, 0)
+            derivedKey = otherLibBip32Ed25519.derivePublic(derivedKey, 1)
 
             const derivedPub = new Uint8Array(derivedKey.subarray(0, 32)) // public key from extended format
             expect(derivedPub).toEqual(key)
@@ -115,9 +115,9 @@ describe("Contextual Derivation & Signing", () => {
             await ready
             const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Identity, 1, 2, BIP32DerivationType.Khovratovich)
   
-            let derivedKey: Uint8Array = libBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(0))
-            derivedKey = libBip32Ed25519.derivePrivate(derivedKey, harden(1))
+            let derivedKey: Uint8Array = otherLibBip32Ed25519.derivePrivate(Buffer.from(rootKey), harden(44))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(0))
+            derivedKey = otherLibBip32Ed25519.derivePrivate(derivedKey, harden(1))
 
             // ext private => ext public format!
             const nodeScalar: Uint8Array = derivedKey.subarray(0, 32)
@@ -127,8 +127,8 @@ describe("Contextual Derivation & Signing", () => {
             // [Public][ChainCode]
             const extPub: Buffer = Buffer.concat([nodePublic, nodeCC])
             
-            derivedKey = libBip32Ed25519.derivePublic(extPub, 0)
-            derivedKey = libBip32Ed25519.derivePublic(derivedKey, 2)
+            derivedKey = otherLibBip32Ed25519.derivePublic(extPub, 0)
+            derivedKey = otherLibBip32Ed25519.derivePublic(derivedKey, 2)
 
             const derivedPub = new Uint8Array(derivedKey.subarray(0, 32)) // public key from extended format
             expect(derivedPub).toEqual(key)
@@ -214,7 +214,7 @@ describe("Contextual Derivation & Signing", () => {
                 const challenge: Uint8Array = new Uint8Array(randomBytes(32))
                 
                 // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "schemas/auth.request.json"), "utf8"))
+                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
                 const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: authSchema }                
                 const base64Challenge: string = Buffer.from(challenge).toString("base64")
 
@@ -231,7 +231,7 @@ describe("Contextual Derivation & Signing", () => {
                 const challenge: Uint8Array = new Uint8Array(randomBytes(32))
 
                 // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "schemas/auth.request.json"), "utf8"))
+                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
                 const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: authSchema }
                 const encoded: Uint8Array = msgpack.encode(challenge)
 
@@ -246,7 +246,7 @@ describe("Contextual Derivation & Signing", () => {
                 const challenge: Uint8Array = new Uint8Array(randomBytes(32))
 
                 // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "schemas/auth.request.json"), "utf8"))
+                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
                 const metadata: SignMetadata = { encoding: Encoding.NONE, schema: authSchema }
 
                 const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, challenge,  metadata)
