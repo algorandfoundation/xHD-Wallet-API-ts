@@ -1,3 +1,10 @@
+## [1.0.1-canary.1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.0...v1.0.1-canary.1) (2024-10-15)
+
+
+### Bug Fixes
+
+* remove other KeyContexts ([e0c4626](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/e0c46267f832a0fd1e2ebef9b20817e333e94505))
+
 # 1.0.0 (2024-10-15)
 
 
