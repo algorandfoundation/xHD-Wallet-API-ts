@@ -1,3 +1,10 @@
+# [1.0.0-canary.2](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.0-canary.1...v1.0.0-canary.2) (2024-10-15)
+
+
+### Bug Fixes
+
+* package name scope ([d4f68ee](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/d4f68eea19a82b6cf2d47123a6819ad5c49938f0))
+
 # 1.0.0-canary.1 (2024-10-15)
 
 
