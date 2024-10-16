@@ -5,17 +5,17 @@ import {
     crypto_hash_sha512,
     crypto_scalarmult_ed25519_base_noclamp,
     crypto_sign_verify_detached,
-    ready,
     crypto_sign_ed25519_pk_to_curve25519,
     crypto_scalarmult,
     crypto_generichash,
-} from 'libsodium-wrappers-sumo';
+} from './sumo.js';
 import * as msgpack from "algo-msgpack-with-bigint"
 import Ajv from "ajv"
+//@ts-expect-error, we handle this with ts-alias
 import { deriveChildNodePrivate } from './bip32-ed25519';
 
 /**
- * 
+ *
  */
 export enum KeyContext {
     Address = 0,
@@ -25,7 +25,7 @@ export enum KeyContext {
 export enum BIP32DerivationType {
     // standard Ed25519 bip32 derivations based of: https://acrobat.adobe.com/id/urn:aaid:sc:EU:04fe29b0-ea1a-478b-a886-9bb558a5242a
     // Defines 32 bits to be zeroed from each derived zL
-    Khovratovich = 32, 
+    Khovratovich = 32,
     // Derivations based on Peikert's ammendments to the original BIP32-Ed25519
     // Picking only 9 bits to be zeroed from each derived zL
     Peikert = 9
@@ -43,7 +43,7 @@ export enum Encoding {
 }
 
 export interface SignMetadata {
-    encoding: Encoding 
+    encoding: Encoding
     schema: Object
 }
 
@@ -69,15 +69,13 @@ export class XHDWalletAPI {
 
     /**
      * Derives a child key from the root key based on BIP44 path
-     * 
+     *
      * @param rootKey - root key in extended format (kL, kR, c). It should be 96 bytes long
      * @param bip44Path - BIP44 path (m / purpose' / coin_type' / account' / change / address_index). The ' indicates that the value is hardened
      * @param isPrivate  - if true, return the private key, otherwise return the public key
      * @returns - The extended private key (kL, kR, chainCode) or the extended public key (pub, chainCode)
      */
     async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true, derivationType: BIP32DerivationType): Promise<Uint8Array> {
-        await ready // libsodium
-
         // Pick `g`, which is amount of bits zeroed from each derived node
         const g: number = derivationType === BIP32DerivationType.Peikert ? 9 : 32
 
@@ -93,16 +91,14 @@ export class XHDWalletAPI {
     }
 
     /**
-     * 
-     * 
+     *
+     *
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
      * @returns - public key 32 bytes
      */
     async keyGen(rootKey: Uint8Array, context: KeyContext, account:number, keyIndex: number, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
-        await ready // libsodium
-
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
         const extendedKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, false, derivationType)
@@ -125,8 +121,6 @@ export class XHDWalletAPI {
      * - signature holding R and S, totally 64 bytes
      */
     private async rawSign(rootKey: Uint8Array, bip44Path: number[], data: Uint8Array, derivationType: BIP32DerivationType): Promise<Uint8Array> {
-        await ready // libsodium
-
         const raw: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
         const scalar: Uint8Array = raw.slice(0, 32);
@@ -152,9 +146,9 @@ export class XHDWalletAPI {
 
     /**
      * Ref: https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.6
-     * 
+     *
      *  Edwards-Curve Digital Signature Algorithm (EdDSA)
-     * 
+     *
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
@@ -162,13 +156,13 @@ export class XHDWalletAPI {
      * @param metadata - metadata object that describes how `data` was encoded and what schema to use to validate against
      * @param derivationType
      * - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's ammendment to BIP32-Ed25519
-     * 
+     *
      * @returns - signature holding R and S, totally 64 bytes
-     * */ 
+     * */
     async signData(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, data: Uint8Array, metadata: SignMetadata, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         // validate data
         const result: boolean | Error = this.validateData(data, metadata)
-        
+
         if (result instanceof Error) { // decoding errors
             throw result
         }
@@ -176,8 +170,6 @@ export class XHDWalletAPI {
         if (!result) { // failed schema validation
             throw ERROR_BAD_DATA
         }
-        
-        await ready // libsodium
 
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
         return await this.rawSign(rootKey, bip44Path, data, derivationType)
@@ -200,8 +192,6 @@ export class XHDWalletAPI {
      * - Raw bytes signature
      */
     async signAlgoTransaction(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, prefixEncodedTx: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
-        await ready // libsodium
-
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
         const sig =  await this.rawSign(rootKey, bip44Path, prefixEncodedTx, derivationType)
@@ -211,11 +201,11 @@ export class XHDWalletAPI {
 
 
     /**
-     * SAMPLE IMPLEMENTATION to show how to validate data with encoding and schema, using base64 as an example 
-     * 
-     * @param message 
-     * @param metadata 
-     * @returns 
+     * SAMPLE IMPLEMENTATION to show how to validate data with encoding and schema, using base64 as an example
+     *
+     * @param message
+     * @param metadata
+     * @returns
      */
     private validateData(message: Uint8Array, metadata: SignMetadata): boolean | Error {
 
@@ -242,6 +232,7 @@ export class XHDWalletAPI {
         }
 
         // validate with schema
+        //@ts-expect-error, this is constructable
         const ajv = new Ajv()
 		const validate = ajv.compile(metadata.schema)
 
@@ -254,7 +245,7 @@ export class XHDWalletAPI {
 
     /**
      * Detect if the message has Algorand protocol specific tags
-     * 
+     *
      * @param message - raw bytes of the message
      * @returns - true if message has Algorand protocol specific tags, false otherwise
      */
@@ -280,28 +271,27 @@ export class XHDWalletAPI {
 
     /**
      * Wrapper around libsodium basica signature verification
-     * 
+     *
      * Any lib or system that can verify EdDSA signatures can be used
-     * 
+     *
      * @param signature - raw 64 bytes signature (R, S)
      * @param message - raw bytes of the message
      * @param publicKey - raw 32 bytes public key (x,y)
      * @returns true if signature is valid, false otherwise
      */
     async verifyWithPublicKey(signature: Uint8Array, message: Uint8Array, publicKey: Uint8Array): Promise<boolean> {
-        await ready // libsodium
         return crypto_sign_verify_detached(signature, message, publicKey)
     }
 
 
     /**
      * Function to perform ECDH against a provided public key
-     * 
+     *
      * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
-     * 
+     *
      * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
      * This symmetric secret can be used to derive a symmetric key for encryption and decryption. Creating a private channel between the two parties.
-     * 
+     *
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
@@ -310,8 +300,6 @@ export class XHDWalletAPI {
      * @returns - raw 32 bytes shared secret
      */
     async ECDH(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, otherPartyPub: Uint8Array, meFirst: boolean, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
-        await ready
-        
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
         const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
@@ -319,16 +307,16 @@ export class XHDWalletAPI {
 
         // our public key is derived from the private key
         const ourPub: Uint8Array = crypto_scalarmult_ed25519_base_noclamp(scalar)
-        
+
         // convert from ed25519 to curve25519
         const ourPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(ourPub)
         const otherPartyPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(otherPartyPub)
 
         // find common point
         const sharedPoint: Uint8Array = crypto_scalarmult(scalar, otherPartyPubCurve25519)
-        
+
         let concatenation: Uint8Array
-        if (meFirst) { 
+        if (meFirst) {
             concatenation = Buffer.concat([sharedPoint, ourPubCurve25519, otherPartyPubCurve25519])
         } else {
             concatenation = Buffer.concat([sharedPoint, otherPartyPubCurve25519, ourPubCurve25519])
