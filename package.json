@@ -1,6 +1,6 @@
 {
   "name": "@algorandfoundation/xhd-wallet-api",
-  "version": "1.0.2-canary.1",
+  "version": "1.0.2",
   "description": "A Typescript implementation of Algorand ARC-52 extended hierarchical determinstic wallets.",
   "exports": {
     ".": {
