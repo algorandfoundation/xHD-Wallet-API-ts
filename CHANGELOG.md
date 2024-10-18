@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.1...v1.0.2) (2024-10-18)
+
+
+### Bug Fixes
+
+* ensure module is loaded before consuming as imports ([39131e1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/39131e1645bdaaf2ce0d57152b9bdc90e429dcd5))
+
 ## [1.0.2-canary.1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.1...v1.0.2-canary.1) (2024-10-16)
 
 
