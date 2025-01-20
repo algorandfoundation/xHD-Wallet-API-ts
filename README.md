@@ -35,7 +35,7 @@ $ yarn test
 
 ## Regarding CJS
 
-This library can be used in a CommonJS as a dynamic import:
+This library can be used in a CommonJS environment as a dynamic import:
 
 ```ts
 ;(async function () {
