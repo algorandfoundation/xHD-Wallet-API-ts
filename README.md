@@ -33,6 +33,28 @@ $ yarn
 $ yarn test
 ```
 
+## Regarding CJS
+
+This library can be used in a CommonJS environment as a dynamic import:
+
+```ts
+;(async function () {
+  const hd = await import("@algorandfoundation/xhd-wallet-api");
+})();
+```
+
+Make sure to set your tsconfig.json so it is at least:
+
+```json
+{
+  "target": "es2020",
+  "module": "Node16",
+  "moduleResolution": "Node16"
+}
+```
+
+# Test
+
 ## Output
 
 ```shell
