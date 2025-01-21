@@ -1,3 +1,10 @@
+## [1.0.3-canary.1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.2...v1.0.3-canary.1) (2025-01-21)
+
+
+### Bug Fixes
+
+* include instructions for CJS ([7cbdf23](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/7cbdf2375782c57b6a4bff99e68d326494849d99))
+
 ## [1.0.2](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.1...v1.0.2) (2024-10-18)
 
 
