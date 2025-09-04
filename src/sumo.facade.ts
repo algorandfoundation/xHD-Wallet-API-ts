@@ -1,9 +1,9 @@
-import { ed25519, x25519 } from "@noble/curves/ed25519.js";
-import { sha512 } from "@noble/hashes/sha2.js";
-import { blake2b } from "@noble/hashes/blake2.js";
-import { mod } from "@noble/curves/abstract/modular.js";
-import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
 import { xsalsa20poly1305 } from "@noble/ciphers/salsa.js";
+import { mod } from "@noble/curves/abstract/modular.js";
+import { ed25519, x25519 } from "@noble/curves/ed25519.js";
+import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
+import { blake2b } from "@noble/hashes/blake2.js";
+import { sha512 } from "@noble/hashes/sha2.js";
 
 // ===========================
 // Libsodium Type Definitions
@@ -24,19 +24,10 @@ export interface CryptoKX {
 // Libsodium Constants
 // ===========================
 
-const crypto_secretbox_KEYBYTES = 32;
-const crypto_secretbox_NONCEBYTES = 24;
-const crypto_secretbox_MACBYTES = 16;
-const crypto_sign_PUBLICKEYBYTES = 32;
 const crypto_sign_SECRETKEYBYTES = 64;
-const crypto_scalarmult_ed25519_BYTES = 32;
 const crypto_scalarmult_ed25519_SCALARBYTES = 32;
-const crypto_kx_PUBLICKEYBYTES = 32;
-const crypto_kx_SECRETKEYBYTES = 32;
-const crypto_kx_SESSIONKEYBYTES = 32;
 const crypto_generichash_BYTES_MIN = 16;
 const crypto_generichash_BYTES_MAX = 64;
-const crypto_hash_sha512_BYTES = 64;
 
 // ===========================
 // Ed25519 Signature Functions
@@ -50,14 +41,6 @@ export function crypto_sign_verify_detached(
   message: Uint8Array,
   publicKey: Uint8Array
 ): boolean {
-  // Input validation
-  if (signature.length !== 64) {
-    return false; // Invalid signature length
-  }
-  if (publicKey.length !== crypto_sign_PUBLICKEYBYTES) {
-    return false; // Invalid public key length
-  }
-
   try {
     return ed25519.verify(signature, message, publicKey);
   } catch (error) {
@@ -143,14 +126,6 @@ export function crypto_core_ed25519_add(
   pointA: Uint8Array,
   pointB: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (pointA.length !== crypto_scalarmult_ed25519_BYTES) {
-    throw new Error(`point A must be ${crypto_scalarmult_ed25519_BYTES} bytes`);
-  }
-  if (pointB.length !== crypto_scalarmult_ed25519_BYTES) {
-    throw new Error(`point B must be ${crypto_scalarmult_ed25519_BYTES} bytes`);
-  }
-
   try {
     const a = ed25519.Point.fromBytes(pointA);
     const b = ed25519.Point.fromBytes(pointB);
@@ -172,17 +147,6 @@ export function crypto_core_ed25519_scalar_add(
   scalarA: Uint8Array,
   scalarB: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (scalarA.length !== crypto_scalarmult_ed25519_SCALARBYTES) {
-    throw new Error(
-      `scalar A must be ${crypto_scalarmult_ed25519_SCALARBYTES} bytes`
-    );
-  }
-  if (scalarB.length !== crypto_scalarmult_ed25519_SCALARBYTES) {
-    throw new Error(
-      `scalar B must be ${crypto_scalarmult_ed25519_SCALARBYTES} bytes`
-    );
-  }
 
   // Convert little-endian bytes to bigint
   const a = bytesToNumberLE(scalarA);
@@ -200,17 +164,6 @@ export function crypto_core_ed25519_scalar_mul(
   scalarA: Uint8Array,
   scalarB: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (scalarA.length !== crypto_scalarmult_ed25519_SCALARBYTES) {
-    throw new Error(
-      `scalar A must be ${crypto_scalarmult_ed25519_SCALARBYTES} bytes`
-    );
-  }
-  if (scalarB.length !== crypto_scalarmult_ed25519_SCALARBYTES) {
-    throw new Error(
-      `scalar B must be ${crypto_scalarmult_ed25519_SCALARBYTES} bytes`
-    );
-  }
 
   const a = bytesToNumberLE(scalarA);
   const b = bytesToNumberLE(scalarB);
@@ -245,14 +198,6 @@ export function crypto_scalarmult(
   privateKey: Uint8Array,
   publicKey: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (privateKey.length !== crypto_kx_SECRETKEYBYTES) {
-    throw new Error(`private key must be ${crypto_kx_SECRETKEYBYTES} bytes`);
-  }
-  if (publicKey.length !== crypto_kx_PUBLICKEYBYTES) {
-    throw new Error(`public key must be ${crypto_kx_PUBLICKEYBYTES} bytes`);
-  }
-
   return x25519.getSharedSecret(privateKey, publicKey);
 }
 
@@ -262,13 +207,6 @@ export function crypto_scalarmult(
 export function crypto_sign_ed25519_pk_to_curve25519(
   edPubKey: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (edPubKey.length !== crypto_sign_PUBLICKEYBYTES) {
-    throw new Error(
-      `Ed25519 public key must be ${crypto_sign_PUBLICKEYBYTES} bytes`
-    );
-  }
-
   return ed25519.utils.toMontgomery(edPubKey);
 }
 
@@ -278,13 +216,6 @@ export function crypto_sign_ed25519_pk_to_curve25519(
 export function crypto_sign_ed25519_sk_to_curve25519(
   edPrivKey: Uint8Array
 ): Uint8Array {
-  // Input validation - Ed25519 private key should be 64 bytes (seed + public key)
-  if (edPrivKey.length !== crypto_sign_SECRETKEYBYTES) {
-    throw new Error(
-      `Ed25519 private key must be ${crypto_sign_SECRETKEYBYTES} bytes`
-    );
-  }
-
   // Extract just the seed (first 32 bytes) since edwardsToMontgomeryPriv expects 32 bytes
   const seed = edPrivKey.slice(0, 32);
   return ed25519.utils.toMontgomerySecret(seed);
@@ -298,12 +229,7 @@ export function crypto_sign_ed25519_sk_to_curve25519(
  * SHA-512 hash function
  */
 export function crypto_hash_sha512(message: Uint8Array): Uint8Array {
-  const result = sha512(message);
-  // Ensure result is exactly 64 bytes
-  if (result.length !== crypto_hash_sha512_BYTES) {
-    throw new Error(`SHA-512 hash must be ${crypto_hash_sha512_BYTES} bytes`);
-  }
-  return result;
+  return sha512(message);
 }
 
 /**
@@ -343,22 +269,6 @@ export function crypto_kx_client_session_keys(
   clientPriv: Uint8Array,
   serverPub: Uint8Array
 ): CryptoKX {
-  // Input validation
-  if (clientPub.length !== crypto_kx_PUBLICKEYBYTES) {
-    throw new Error(
-      `client public key must be ${crypto_kx_PUBLICKEYBYTES} bytes`
-    );
-  }
-  if (clientPriv.length !== crypto_kx_SECRETKEYBYTES) {
-    throw new Error(
-      `client private key must be ${crypto_kx_SECRETKEYBYTES} bytes`
-    );
-  }
-  if (serverPub.length !== crypto_kx_PUBLICKEYBYTES) {
-    throw new Error(
-      `server public key must be ${crypto_kx_PUBLICKEYBYTES} bytes`
-    );
-  }
 
   // Step 1: Perform X25519 ECDH to get shared secret
   const sharedSecret = x25519.getSharedSecret(clientPriv, serverPub);
@@ -391,22 +301,6 @@ export function crypto_kx_server_session_keys(
   serverPriv: Uint8Array,
   clientPub: Uint8Array
 ): CryptoKX {
-  // Input validation
-  if (serverPub.length !== crypto_kx_PUBLICKEYBYTES) {
-    throw new Error(
-      `server public key must be ${crypto_kx_PUBLICKEYBYTES} bytes`
-    );
-  }
-  if (serverPriv.length !== crypto_kx_SECRETKEYBYTES) {
-    throw new Error(
-      `server private key must be ${crypto_kx_SECRETKEYBYTES} bytes`
-    );
-  }
-  if (clientPub.length !== crypto_kx_PUBLICKEYBYTES) {
-    throw new Error(
-      `client public key must be ${crypto_kx_PUBLICKEYBYTES} bytes`
-    );
-  }
 
   // Step 1: Perform X25519 ECDH to get shared secret
   const sharedSecret = x25519.getSharedSecret(serverPriv, clientPub);
@@ -443,14 +337,6 @@ export function crypto_secretbox_easy(
   nonce: Uint8Array,
   key: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (key.length !== crypto_secretbox_KEYBYTES) {
-    throw new Error(`key must be ${crypto_secretbox_KEYBYTES} bytes`);
-  }
-  if (nonce.length !== crypto_secretbox_NONCEBYTES) {
-    throw new Error(`nonce must be ${crypto_secretbox_NONCEBYTES} bytes`);
-  }
-
   // Encrypt the message using XSalsa20Poly1305
   const encrypted = xsalsa20poly1305(key, nonce).encrypt(message);
 
@@ -465,17 +351,6 @@ export function crypto_secretbox_open_easy(
   nonce: Uint8Array,
   key: Uint8Array
 ): Uint8Array {
-  // Input validation
-  if (key.length !== crypto_secretbox_KEYBYTES) {
-    throw new Error(`key must be ${crypto_secretbox_KEYBYTES} bytes`);
-  }
-  if (nonce.length !== crypto_secretbox_NONCEBYTES) {
-    throw new Error(`nonce must be ${crypto_secretbox_NONCEBYTES} bytes`);
-  }
-  if (ciphertext.length < crypto_secretbox_MACBYTES) {
-    throw new Error(`ciphertext too short`);
-  }
-
   try {
     // Decrypt the message using XSalsa20Poly1305
     const decrypted = xsalsa20poly1305(key, nonce).decrypt(ciphertext);
