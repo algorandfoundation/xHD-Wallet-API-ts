@@ -42,13 +42,13 @@ describe("Sumo Facade Functionality", () => {
   });
 
   describe("Scalar Multiplication", () => {
-    it("should handle zero scalar correctly", () => {
+    it("should reject zero scalar with error", () => {
       const zeroScalar = new Uint8Array(32).fill(0);
 
-      // Should not throw error and should produce a valid point
-      const result = crypto_scalarmult_ed25519_base_noclamp(zeroScalar);
-      expect(result).toBeInstanceOf(Uint8Array);
-      expect(result.length).toBe(32);
+      // Should throw error matching libsodium behavior
+      expect(() => {
+        crypto_scalarmult_ed25519_base_noclamp(zeroScalar);
+      }).toThrow("scalar is 0");
     });
 
     it("should handle maximum scalar correctly", () => {

@@ -87,31 +87,23 @@ export function crypto_scalarmult_ed25519_base_noclamp(
   // Convert scalar bytes to bigint (little-endian)
   const scalarBigint = bytesToNumberLE(scalar);
 
+  // Reject zero scalars to match libsodium behavior
+  if (scalarBigint === 0n) {
+    throw new Error("scalar is 0");
+  }
+
   try {
-    // Try multiplication directly without any validation
+    // Try multiplication directly
     const point = ed25519.Point.BASE.multiply(scalarBigint);
     return point.toBytes();
   } catch (error) {
-    // Handle edge cases that libsodium noclamp supports but noble/curves rejects
-    // This matches libsodium's noclamp behavior for invalid scalars
-
-    // If scalar is 0, return identity point
-    if (scalarBigint === 0n) {
-      // Identity point in Ed25519: (0, 1) which compresses to 0x01 followed by zeros
-      const identity = new Uint8Array(32);
-      identity[0] = 1; // y-coordinate = 1, sign bit = 0
-      return identity;
-    }
-
-    // For other edge cases (scalar >= curve order), reduce modulo curve order
+    // For edge cases (scalar >= curve order), reduce modulo curve order
     // This maintains compatibility with libsodium's noclamp behavior
     const reducedScalar = mod(scalarBigint, ed25519.Point.Fn.ORDER);
 
-    // Handle reduced scalar of 0 after modular reduction
+    // Reject zero after reduction
     if (reducedScalar === 0n) {
-      const identity = new Uint8Array(32);
-      identity[0] = 1;
-      return identity;
+      throw new Error("scalar is 0");
     }
 
     const point = ed25519.Point.BASE.multiply(reducedScalar);
