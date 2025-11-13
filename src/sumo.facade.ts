@@ -100,11 +100,11 @@ export function crypto_scalarmult_ed25519_base_noclamp(
     // For edge cases (scalar >= curve order), reduce modulo curve order
     // This maintains compatibility with libsodium's noclamp behavior
 
-		// Clear top bit from scalar using bitwise AND with bitmask:
-		// 1n << 255n creates a bigint with only bit 255 set
-  	// Subtracting 1n gives you all bits 0-254 set (0x7FFF...FFFF)
-  	// Bitwise & operation with the resulting mask clears bit 255
-		const clearedTopBitScalar = scalarBigint & ((1n << 255n) - 1n);
+    // Clear top bit from scalar using bitwise AND with bitmask:
+    // 1n << 255n creates a bigint with only bit 255 set
+    // Subtracting 1n gives you all bits 0-254 set (0x7FFF...FFFF)
+    // Bitwise & operation with the resulting mask clears bit 255
+    const clearedTopBitScalar = scalarBigint & ((1n << 255n) - 1n);
     const reducedScalar = mod(clearedTopBitScalar, ed25519.Point.Fn.ORDER);
 
     // Reject zero after reduction
