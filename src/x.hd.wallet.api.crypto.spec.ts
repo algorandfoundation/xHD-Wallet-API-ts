@@ -1,20 +1,20 @@
-import { to_base64, crypto_kx_client_session_keys, crypto_kx_server_session_keys, crypto_scalarmult, crypto_scalarmult_ed25519_base_noclamp, crypto_secretbox_easy, crypto_secretbox_open_easy, crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair} from './sumo.js'
-import type { CryptoKX, KeyPair} from "libsodium-wrappers-sumo"
+import type { CryptoKX, KeyPair } from "./sumo.facade.js"
+import { crypto_kx_client_session_keys, crypto_kx_server_session_keys, crypto_scalarmult, crypto_scalarmult_ed25519_base_noclamp, crypto_secretbox_easy, crypto_secretbox_open_easy, crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair, to_base64 } from './sumo.facade.js'
 
-import * as bip39 from "bip39"
-import { randomBytes } from "crypto"
-import { BIP32DerivationType, XHDWalletAPI, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, harden } from "./x.hd.wallet.api.crypto.js"
-import * as msgpack from "algo-msgpack-with-bigint"
-import { deriveChildNodePrivate, deriveChildNodePublic, fromSeed } from "./bip32-ed25519.js"
-import { sha512_256 } from "js-sha512"
-import base32 from "hi-base32"
+import * as bip39 from "@scure/bip39"
 import { JSONSchemaType } from "ajv"
+import * as msgpack from "algo-msgpack-with-bigint"
+import { randomBytes } from "crypto"
 import { readFileSync } from "fs"
+import base32 from "hi-base32"
+import { sha512_256 } from "js-sha512"
 import path from "node:path"
 import nacl from "tweetnacl"
+import { deriveChildNodePrivate, deriveChildNodePublic, fromSeed } from "./bip32-ed25519.js"
+import { BIP32DerivationType, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, XHDWalletAPI, harden } from "./x.hd.wallet.api.crypto.js"
 //@ts-expect-error, no types found
 import * as otherLibBip32Ed25519 from 'bip32-ed25519'
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function encodeAddress(publicKey: Buffer): string {
@@ -46,7 +46,7 @@ describe("Contextual Derivation & Signing", () => {
     let rootKey: Uint8Array
 
     beforeAll(() => {
-        rootKey = fromSeed( bip39.mnemonicToSeedSync(bip39Mnemonic, ""))
+        rootKey = fromSeed( Buffer.from(bip39.mnemonicToSeedSync(bip39Mnemonic, "")))
     })
 
 	beforeEach(() => {
@@ -388,8 +388,8 @@ describe("Contextual Derivation & Signing", () => {
             let aliceRootKey: Uint8Array
             let bobRootKey: Uint8Array
             beforeEach(() => {
-                aliceRootKey = fromSeed(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", ""))
-                bobRootKey = fromSeed(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", ""))
+                aliceRootKey = fromSeed(Buffer.from(bip39.mnemonicToSeedSync("exact remain north lesson program series excess lava material second riot error boss planet brick rotate scrap army riot banner adult fashion casino bamboo", "")))
+                bobRootKey = fromSeed(Buffer.from(bip39.mnemonicToSeedSync("identify length ranch make silver fog much puzzle borrow relax occur drum blue oval book pledge reunion coral grace lamp recall fever route carbon", "")))
             })
 
             it("\(OK) ECDH", async () => {
@@ -421,11 +421,8 @@ describe("Contextual Derivation & Signing", () => {
 
                 // encrypt
                 const cipherText: Uint8Array = crypto_secretbox_easy(message, nonce, aliceSharedSecret)
-
-                // log cipherText uint8array
-                console.log("cipherText", cipherText)
-
                 expect(cipherText).toEqual(new Uint8Array([20, 107, 126, 154, 152, 197, 252, 227, 148,  39, 245, 136, 233,  10, 199,  20, 219,   3,  53,   2, 113, 6, 190,  21, 193, 119,  43,  44, 230]))
+
                 // decrypt
                 const plainText: Uint8Array = crypto_secretbox_open_easy(cipherText, nonce, bobSharedSecret)
                 expect(plainText).toEqual(message)
@@ -435,7 +432,7 @@ describe("Contextual Derivation & Signing", () => {
                 // keypair
                 const alice: KeyPair = crypto_sign_keypair()
 
-                const alicePvtKey: Uint8Array = alice.privateKey
+                const alicePvtKey: Uint8Array = alice.secretKey
                 const alicePubKey: Uint8Array = alice.publicKey
 
                 const aliceXPvt: Uint8Array = crypto_sign_ed25519_sk_to_curve25519(alicePvtKey)
@@ -444,7 +441,7 @@ describe("Contextual Derivation & Signing", () => {
                 // bob
                 const bob: KeyPair = crypto_sign_keypair()
 
-                const bobPvtKey: Uint8Array = bob.privateKey
+                const bobPvtKey: Uint8Array = bob.secretKey
                 const bobPubKey: Uint8Array = bob.publicKey
 
                 const bobXPvt: Uint8Array = crypto_sign_ed25519_sk_to_curve25519(bobPvtKey)

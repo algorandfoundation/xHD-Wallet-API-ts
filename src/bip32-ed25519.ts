@@ -3,7 +3,7 @@ import { createHash, createHmac } from "crypto";
 import {
   crypto_core_ed25519_add,
   crypto_scalarmult_ed25519_base_noclamp,
-} from "./sumo.js";
+} from "./sumo.facade.js";
 import BN from 'bn.js'
 import * as util from 'util'
 
@@ -53,7 +53,7 @@ export function fromSeed(seed: Buffer): Uint8Array {
  */
 export function trunc_256_minus_g_bits(array: Uint8Array, g: number): Uint8Array {
   if (g < 0 || g > 256) {
-    throw new Error("Number of bits to zero must be between 0 and 256.");
+    throw Error("Number of bits to zero must be between 0 and 256.");
   }
 
   // make a copy of array
@@ -142,7 +142,7 @@ export async function deriveChildNodePrivate(
   // check if zlBigNumMul8 is equal or larger than 2^255
   if (zlBigNumMul8.cmp(new BN(2).pow(new BN(255))) >= 0) {
     console.log(util.inspect(zlBigNumMul8), { colors: true, depth: null })
-    throw new Error('zL * 8 is larger than 2^255, which is not safe')
+    throw Error('zL * 8 is larger than 2^255, which is not safe')
   }
 
   const left = klBigNum.add(zlBigNum.mul(big8)).toArrayLike(Buffer, 'le', 32);
@@ -169,7 +169,7 @@ export async function deriveChildNodePrivate(
  * @returns - 64 bytes, being the 32 bytes of the child key (the new public key) followed by the 32 bytes of the chain code
  */
 export async function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Promise<Uint8Array> {
-    if (index > 0x80000000) throw new Error('can not derive public key with harden')
+    if (index > 0x80000000) throw Error('can not derive public key with harden')
 
     const pk: Buffer = Buffer.from(extendedKey.subarray(0, 32))
     const cc: Buffer = Buffer.from(extendedKey.subarray(32, 64))
