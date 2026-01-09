@@ -4,6 +4,10 @@ Typescript implementation of BIP32-Ed25519 Hierarchical Deterministic Keys over 
 
 The implementation is based on the [BIP32-ed25519](https://acrobat.adobe.com/id/urn:aaid:sc:EU:04fe29b0-ea1a-478b-a886-9bb558a5242a) specification.
 
+## Changes from 1.x to 2.x
+
+Due to issues related to importing a library reliant on WASM into the browser environment as well as in React-Native, we decided to migrate away from LibSodium.js (sudo version) to Noble cryptography. See (PR #22)[https://github.com/algorandfoundation/xHD-Wallet-API-ts/pull/22] for more details.
+
 ## Variants
 
 It offers 2 modes to derive keys.
