@@ -283,6 +283,29 @@ export class XHDWalletAPI {
         return crypto_sign_verify_detached(signature, message, publicKey)
     }
 
+      /**
+     * Function to perform ECDH against a provided public key. This function is raw ECDH with the other party's public key in montogomery format.
+     * Use `ECDH` function if you have the other party's public key in ed25519 format and don't need the raw shared secret.
+     *
+     * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
+     *
+     * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
+     * This symmetric secret can be used to derive a symmetric key for encryption and decryption. Creating a private channel between the two parties.
+     *
+     * @param context - context of the key (i.e Address, Identity)
+     * @param account - account number. This value will be hardened as part of BIP44
+     * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
+     * @param otherPartyCurve25519Pub - raw 32 byte curve25519 public key of the other party
+     * @returns - raw 32 byte ECDH shared secret
+     */
+    async ECDHRaw(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, otherPartyCurve25519Pub: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
+        const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
+        const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
+        const scalar: Uint8Array = childKey.slice(0, 32)
+
+        return crypto_scalarmult(scalar, otherPartyCurve25519Pub)
+    }
+
 
     /**
      * Function to perform ECDH against a provided public key
@@ -295,11 +318,11 @@ export class XHDWalletAPI {
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
-     * @param otherPartyPub - raw 32 bytes public key of the other party
+     * @param otherPartyEd25519Pub - raw 32 byte ed25519 public key of the other party
      * @param meFirst - defines the order in which the keys will be considered for the shared secret. If true, our key will be used first, otherwise the other party's key will be used first
-     * @returns - raw 32 bytes shared secret
+     * @returns - 32 byte blake2b hash of the shared point along with both public keys
      */
-    async ECDH(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, otherPartyPub: Uint8Array, meFirst: boolean, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
+    async ECDH(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, otherPartyEd25519Pub: Uint8Array, meFirst: boolean, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
         const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
@@ -310,7 +333,7 @@ export class XHDWalletAPI {
 
         // convert from ed25519 to curve25519
         const ourPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(ourPub)
-        const otherPartyPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(otherPartyPub)
+        const otherPartyPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(otherPartyEd25519Pub)
 
         // find common point
         const sharedPoint: Uint8Array = crypto_scalarmult(scalar, otherPartyPubCurve25519)
