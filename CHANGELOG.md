@@ -1,3 +1,13 @@
+# [2.0.0-canary.1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.3...v2.0.0-canary.1) (2026-01-12)
+
+
+* feat!: replace libsodium with @noble/* libs to remove wasm-unsafe-eval CSP requirement ([9849fb3](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/9849fb3e90cecfb6348e188ff445b55806bfde00))
+
+
+### BREAKING CHANGES
+
+* replaced libsodium dependencies with nobile cryptography dependencies
+
 ## [1.0.3](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.2...v1.0.3) (2025-01-21)
 
 
