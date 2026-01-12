@@ -22,7 +22,7 @@ export enum KeyContext {
     Identity = 1
 }
 
-export type ECDHCallback =  (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array) => Promise<Uint8Array>;
+export type ECDHCallback = (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array) => Promise<Uint8Array>;
 export function getBlake2bEcdhCallback(meFirst: boolean): ECDHCallback {
     return async (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array): Promise<Uint8Array> => {
        let concatenation: Uint8Array
@@ -308,7 +308,7 @@ export class XHDWalletAPI {
      *
      * # Safety
      *
-     * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionally should only be called without a callback if the caller is doing KDF themselves.
+     * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionality should only be called without a callback if the caller is doing KDF themselves.
      *
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
@@ -337,6 +337,6 @@ export class XHDWalletAPI {
             return sharedPoint
         }
 
-        return await ecdhCallback(sharedPoint, ourPubCurve25519, otherPartyPubCurve25519) 
+        return await ecdhCallback(sharedPoint, ourPubCurve25519, otherPartyPubCurve25519)
     }
 }

@@ -411,7 +411,6 @@ describe("Contextual Derivation & Signing", () => {
             it("\(OK) ECDH matches noble", async () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobEd25519Keypair = ed25519.keygen()
-                
 
                 const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobEd25519Keypair.publicKey)
 
