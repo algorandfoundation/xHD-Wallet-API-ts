@@ -397,12 +397,12 @@ describe("Contextual Derivation & Signing", () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
 
-                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(true))
-                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(false))
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH({ rootKey: aliceRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: bobKey, ecdhCallback: computeSharedBlake2bSecret(true) })
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH({ rootKey: bobRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: aliceKey, ecdhCallback: computeSharedBlake2bSecret(false) })
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
 
-                const aliceSharedSecret2: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(false))
-                const bobSharedSecret2: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(true))
+                const aliceSharedSecret2: Uint8Array = await cryptoService.ECDH({ rootKey: aliceRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: bobKey, ecdhCallback: computeSharedBlake2bSecret(false) })
+                const bobSharedSecret2: Uint8Array = await cryptoService.ECDH({ rootKey: bobRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: aliceKey, ecdhCallback: computeSharedBlake2bSecret(true) })
                 expect(aliceSharedSecret2).toEqual(bobSharedSecret2)
                 expect(aliceSharedSecret2).not.toEqual(aliceSharedSecret)
 
@@ -412,7 +412,7 @@ describe("Contextual Derivation & Signing", () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobEd25519Keypair = ed25519.keygen()
 
-                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobEd25519Keypair.publicKey)
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH({ rootKey: aliceRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: bobEd25519Keypair.publicKey })
 
                 const bobMontgomerySk = ed25519.utils.toMontgomerySecret(bobEd25519Keypair.secretKey)
                 const aliceMontgomeryPk = ed25519.utils.toMontgomery(aliceKey)
@@ -425,8 +425,8 @@ describe("Contextual Derivation & Signing", () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
 
-                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(true))
-                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(false))
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH({ rootKey: aliceRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: bobKey, ecdhCallback: computeSharedBlake2bSecret(true) })
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH({ rootKey: bobRootKey, context: KeyContext.Identity, account: 0, keyIndex: 0, otherPartyEd25519Pub: aliceKey, ecdhCallback: computeSharedBlake2bSecret(false) })
 
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
 

@@ -36,6 +36,18 @@ export function computeSharedBlake2bSecret(meFirst: boolean): ECDHCallback {
     }
 }
 
+export type ECDHOptions = {
+  rootKey: Uint8Array;
+  context: KeyContext;
+  account: number;
+  keyIndex: number;
+  ecdhCallback?: ECDHCallback;
+  derivationType?: BIP32DerivationType;
+} & (
+  | { otherPartyEd25519Pub: Uint8Array }
+  | { otherPartyCurve25519Pub: Uint8Array }
+);
+
 export enum BIP32DerivationType {
     // standard Ed25519 bip32 derivations based of: https://acrobat.adobe.com/id/urn:aaid:sc:EU:04fe29b0-ea1a-478b-a886-9bb558a5242a
     // Defines 32 bits to be zeroed from each derived zL
@@ -298,28 +310,34 @@ export class XHDWalletAPI {
     }
 
 
-    /**
-     * Function to perform ECDH against a provided ed25519 public key. 
-     *
-     * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
-     *
-     * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
-     * This symmetric secret can be used to derive a symmetric key for encryption and decryption, creating a private channel between the two parties.
-     *
-     * # Safety
-     *
-     * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionality should only be called without a callback if the caller is doing KDF themselves.
-     *
-     * @param context - context of the key (i.e Address, Identity)
-     * @param account - account number. This value will be hardened as part of BIP44
-     * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
-     * @param otherPartyEd25519Pub - raw 32 byte ed25519 public key of the other party. This key will be converted to montgomery format (curve25519) internally.
-     * @param ecdhCallback - callback function that receives the shared point and both public keys in curve25519 format, and returns the final shared secret. This is typically a KDF.
-     * @returns - If no ecdhCallback is provided, it returns the raw shared point. Otherwise, it returns the result of the ecdhCallback function. 
-     */
-    async ECDH(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, otherPartyEd25519Pub: Uint8Array, ecdhCallback?: ECDHCallback, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
+/**
+ * Function to perform ECDH against a provided ed25519 public key.
+ *
+ * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
+ *
+ * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
+ * This symmetric secret can be used to derive a symmetric key for encryption and decryption, creating a private channel between the two parties.
+ *
+ * # Safety
+ *
+ * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionality should only be called without a callback if the caller is doing KDF themselves.
+ *
+ * @param options - ECDH options object
+ * @param options.rootKey - root key in extended format (kL, kR, c). Should be 96 bytes long
+ * @param options.context - context of the key (i.e Address, Identity)
+ * @param options.account - account number. This value will be hardened as part of BIP44
+ * @param options.keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
+ * @param options.ecdhCallback - callback function that receives the shared point and both public keys in curve25519 format, and returns the final shared secret. This is typically a KDF.
+ * @param options.derivationType - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's amendment to BIP32-Ed25519
+ * @param options.otherPartyEd25519Pub - raw 32 byte ed25519 public key of the other party. This key will be converted to montgomery format (curve25519) internally.
+ * @param options.otherPartyCurve25519Pub - raw 32 byte curve25519 public key of the other party. This key is used directly without conversion.
+ * @returns - If no ecdhCallback is provided, it returns the raw shared point. Otherwise, it returns the result of the ecdhCallback function.
+ */
+async ECDH(options: ECDHOptions): Promise<Uint8Array> {
+        const { rootKey, context, account, keyIndex, ecdhCallback, derivationType } = options 
+
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
-        const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
+        const childKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType ?? BIP32DerivationType.Peikert)
 
         const scalar: Uint8Array = childKey.slice(0, 32)
 
@@ -328,7 +346,13 @@ export class XHDWalletAPI {
 
         // convert from ed25519 to curve25519
         const ourPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(ourPub)
-        const otherPartyPubCurve25519: Uint8Array = crypto_sign_ed25519_pk_to_curve25519(otherPartyEd25519Pub)
+        let otherPartyPubCurve25519: Uint8Array
+
+        if ('otherPartyCurve25519Pub' in options) {
+            otherPartyPubCurve25519 = options.otherPartyCurve25519Pub
+        } else {
+            otherPartyPubCurve25519 = crypto_sign_ed25519_pk_to_curve25519(options.otherPartyEd25519Pub)
+        }
 
         // find common point
         const sharedPoint: Uint8Array = crypto_scalarmult(scalar, otherPartyPubCurve25519)
