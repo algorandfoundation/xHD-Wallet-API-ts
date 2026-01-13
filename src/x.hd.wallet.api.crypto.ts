@@ -311,7 +311,7 @@ export class XHDWalletAPI {
 
 
 /**
- * Function to perform ECDH against a provided ed25519 public key.
+ * Function to perform ECDH against a provided ed25519 or curve25519 public key.
  *
  * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
  *
