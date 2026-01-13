@@ -23,7 +23,7 @@ export enum KeyContext {
 }
 
 export type ECDHCallback = (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array) => Promise<Uint8Array>;
-export function getBlake2bEcdhCallback(meFirst: boolean): ECDHCallback {
+export function computeSharedBlake2bSecret(meFirst: boolean): ECDHCallback {
     return async (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array): Promise<Uint8Array> => {
        let concatenation: Uint8Array
         if (meFirst) {
