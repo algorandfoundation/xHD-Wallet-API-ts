@@ -337,6 +337,6 @@ export class XHDWalletAPI {
             return sharedPoint
         }
 
-        return await ecdhCallback(sharedPoint, ourPubCurve25519, otherPartyPubCurve25519)
+        return ecdhCallback(sharedPoint, ourPubCurve25519, otherPartyPubCurve25519)
     }
 }
