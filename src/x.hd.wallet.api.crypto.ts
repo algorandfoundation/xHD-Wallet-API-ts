@@ -310,30 +310,30 @@ export class XHDWalletAPI {
     }
 
 
-/**
- * Function to perform ECDH against a provided ed25519 or curve25519 public key.
- *
- * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
- *
- * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
- * This symmetric secret can be used to derive a symmetric key for encryption and decryption, creating a private channel between the two parties.
- *
- * # Safety
- *
- * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionality should only be called without a callback if the caller is doing KDF themselves.
- *
- * @param options - ECDH options object
- * @param options.rootKey - root key in extended format (kL, kR, c). Should be 96 bytes long
- * @param options.context - context of the key (i.e Address, Identity)
- * @param options.account - account number. This value will be hardened as part of BIP44
- * @param options.keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
- * @param options.ecdhCallback - callback function that receives the shared point and both public keys in curve25519 format, and returns the final shared secret. This is typically a KDF.
- * @param options.derivationType - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's amendment to BIP32-Ed25519
- * @param options.otherPartyEd25519Pub - raw 32 byte ed25519 public key of the other party. This key will be converted to montgomery format (curve25519) internally.
- * @param options.otherPartyCurve25519Pub - raw 32 byte curve25519 public key of the other party. This key is used directly without conversion.
- * @returns - If no ecdhCallback is provided, it returns the raw shared point. Otherwise, it returns the result of the ecdhCallback function.
- */
-async ECDH(options: ECDHOptions): Promise<Uint8Array> {
+    /**
+     * Function to perform ECDH against a provided ed25519 or curve25519 public key.
+     *
+     * ECDH reference link: https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman
+     *
+     * It creates a shared secret between two parties. Each party only needs to be aware of the other's public key.
+     * This symmetric secret can be used to derive a symmetric key for encryption and decryption, creating a private channel between the two parties.
+     *
+     * # Safety
+     *
+     * Without a callback function, the ECDH shared point is NOT uniformly distributed. It is recommended to provide a callback function that derives a final shared secret from the shared point. This functionality should only be called without a callback if the caller is doing KDF themselves.
+     *
+     * @param options - ECDH options object
+     * @param options.rootKey - root key in extended format (kL, kR, c). Should be 96 bytes long
+     * @param options.context - context of the key (i.e Address, Identity)
+     * @param options.account - account number. This value will be hardened as part of BIP44
+     * @param options.keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
+     * @param options.ecdhCallback - callback function that receives the shared point and both public keys in curve25519 format, and returns the final shared secret. This is typically a KDF.
+     * @param options.derivationType - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's amendment to BIP32-Ed25519
+     * @param options.otherPartyEd25519Pub - raw 32 byte ed25519 public key of the other party. This key will be converted to montgomery format (curve25519) internally.
+     * @param options.otherPartyCurve25519Pub - raw 32 byte curve25519 public key of the other party. This key is used directly without conversion.
+     * @returns - If no ecdhCallback is provided, it returns the raw shared point. Otherwise, it returns the result of the ecdhCallback function.
+     */
+    async ECDH(options: ECDHOptions): Promise<Uint8Array> {
         const { rootKey, context, account, keyIndex, ecdhCallback, derivationType } = options 
 
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
