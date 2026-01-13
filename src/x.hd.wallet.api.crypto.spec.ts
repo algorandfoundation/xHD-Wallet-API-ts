@@ -11,10 +11,11 @@ import { sha512_256 } from "js-sha512"
 import path from "node:path"
 import nacl from "tweetnacl"
 import { deriveChildNodePrivate, deriveChildNodePublic, fromSeed } from "./bip32-ed25519.js"
-import { BIP32DerivationType, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, XHDWalletAPI, harden } from "./x.hd.wallet.api.crypto.js"
+import { BIP32DerivationType, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, XHDWalletAPI, computeSharedBlake2bSecret, harden } from "./x.hd.wallet.api.crypto.js"
 //@ts-expect-error, no types found
 import * as otherLibBip32Ed25519 from 'bip32-ed25519'
 import { fileURLToPath } from 'node:url'
+import { ed25519, x25519 } from "@noble/curves/ed25519.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function encodeAddress(publicKey: Buffer): string {
@@ -396,23 +397,36 @@ describe("Contextual Derivation & Signing", () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
 
-                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, true)
-                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, false)
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(true))
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(false))
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
 
-                const aliceSharedSecret2: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, false)
-                const bobSharedSecret2: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, true)
+                const aliceSharedSecret2: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(false))
+                const bobSharedSecret2: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(true))
                 expect(aliceSharedSecret2).toEqual(bobSharedSecret2)
                 expect(aliceSharedSecret2).not.toEqual(aliceSharedSecret)
 
+            })
+
+            it("\(OK) ECDH matches noble", async () => {
+                const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
+                const bobEd25519Keypair = ed25519.keygen()
+
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobEd25519Keypair.publicKey)
+
+                const bobMontgomerySk = ed25519.utils.toMontgomerySecret(bobEd25519Keypair.secretKey)
+                const aliceMontgomeryPk = ed25519.utils.toMontgomery(aliceKey)
+                const bobSharedSecret = x25519.getSharedSecret(bobMontgomerySk, aliceMontgomeryPk)
+
+                expect(aliceSharedSecret).toEqual(bobSharedSecret)
             })
 
             it("\(OK) ECDH, Encrypt and Decrypt", async () => {
                 const aliceKey: Uint8Array = await cryptoService.keyGen(aliceRootKey, KeyContext.Identity, 0, 0)
                 const bobKey: Uint8Array = await cryptoService.keyGen(bobRootKey, KeyContext.Identity, 0, 0)
 
-                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, true)
-                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, false)
+                const aliceSharedSecret: Uint8Array = await cryptoService.ECDH(aliceRootKey, KeyContext.Identity, 0, 0, bobKey, computeSharedBlake2bSecret(true))
+                const bobSharedSecret: Uint8Array = await cryptoService.ECDH(bobRootKey, KeyContext.Identity, 0, 0, aliceKey, computeSharedBlake2bSecret(false))
 
                 expect(aliceSharedSecret).toEqual(bobSharedSecret)
 
