@@ -2,37 +2,61 @@
   "name": "@algorandfoundation/xhd-wallet-api",
   "version": "2.0.0-canary.1",
   "description": "A Typescript implementation of Algorand ARC-52 extended hierarchical determinstic wallets.",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/types/index.d.ts",
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json -f",
-    "test": "tsc && tsc-alias -p tsconfig.json -f && node --experimental-vm-modules node_modules/.bin/jest",
-    "test:cov": "tsc && tsc-alias -p tsconfig.json -f && node --experimental-vm-modules node_modules/.bin/jest --coverage"
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
   },
-  "keywords": [],
+  "scripts": {
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "rollup -c",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist/esm/types",
+    "build": "yarn build:esm && yarn build:cjs && yarn build:types",
+    "test": "yarn test:esm && yarn test:cjs",
+    "test:cov": "tsc && tsc-alias -p tsconfig.json -f && node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "test:cjs": "jest --config jest.cjs.config.cjs",
+    "test:esm": "node --experimental-vm-modules node_modules/.bin/jest --config jest.esm.config.mjs",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "algorand",
+    "bip32",
+    "ed25519",
+    "hd-wallet"
+  ],
   "author": "Algorand Foundation",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.9",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
     "@scure/bip39": "^2.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/npm": "^12.0.2",
     "@types/bn.js": "^5.2.0",
     "@types/jest": "^29.5.5",
-    "@types/libsodium-wrappers-sumo": "^0.7.8",
+    "@types/libsodium-wrappers-sumo": "0.7.8",
     "@types/node": "^20.7.1",
     "bip32-ed25519": "^0.0.5",
     "hi-base32": "^0.5.1",
     "jest": "^29.7.0",
     "js-sha512": "^0.9.0",
-    "libsodium-wrappers-sumo": "^0.7.15",
+    "libsodium-wrappers-sumo": "0.7.15",
+    "prettier": "^3.2.5",
+    "rollup": "^4.52.5",
     "semantic-release": "^24.2.7",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
     "tweetnacl": "^1.0.3",
-    "typescript": "^5.2.2"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@noble/ciphers": "^2.0.0",
@@ -40,7 +64,10 @@
     "@noble/hashes": "^2.0.0",
     "ajv": "^8.17.1",
     "algo-msgpack-with-bigint": "^2.1.1",
-    "bn.js": "^5.2.2"
+    "big-integer": "^1.6.52",
+    "bn.js": "^5.2.2",
+    "buffer": "^6.0.3",
+    "tslib": "^2.8.1"
   },
   "repository": "git@github.com:algorandfoundation/xHD-Wallet-API-ts.git",
   "files": [
@@ -78,5 +105,6 @@
         "prerelease": "canary"
       }
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22"
 }

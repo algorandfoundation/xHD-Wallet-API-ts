@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "outDir": "./dist/esm",
+    "declaration": true,
+    "declarationDir": "./dist/esm/types",
+    "typeRoots": [
+      "./dist/esm/types",
+      "./node_modules/@types"
+    ],
+    "isolatedModules": true
+  },
+  "exclude": [
+    "**/*.spec.ts",
+    "**/__tests__/**"
+  ]
+}
