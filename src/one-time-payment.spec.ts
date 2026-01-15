@@ -122,7 +122,7 @@ describe("One time Payment Flows", () => {
      
       console.log(`Alice shares her extended key with Bob.`)
 
-// Bob derives the first 20 keys and logs them
+// Bob derives the first 5 keys and logs them
       for (let index = 0; index < 5; index++) {
         const aliceChildNode: Uint8Array = await deriveChildNodePublic(aliceNode, index, g)
 
