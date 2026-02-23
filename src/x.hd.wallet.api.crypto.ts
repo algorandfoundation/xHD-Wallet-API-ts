@@ -119,6 +119,37 @@ export class XHDWalletAPI {
         return extendedKey.subarray(0, 32) // only public key
     }
 
+    /** Signing function that signs data with the provided extended private key: scalar || prefix.
+     * This function should only be used in cases where the caller has the derived private key but not the root key
+     *
+     * Ref: https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.6
+     *
+     * @param extendedPrivateKey - extended private key (scalar || prefix) used for signing, should be at least 64 bytes long
+     * @param data - data to be signed in raw bytes
+     * @returns signature holding R and S, totally 64 bytes
+     */
+     extendedSign(extendedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
+        const scalar: Uint8Array = extendedPrivateKey.slice(0, 32);
+        const kR: Uint8Array = extendedPrivateKey.slice(32, 64);
+
+        // \(1): pubKey = scalar * G (base point, no clamp)
+        const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
+
+        // \(2): h = hash(c || msg) mod q
+        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([kR, data])))
+
+        // \(4):  R = r * G (base point, no clamp)
+        const R = crypto_scalarmult_ed25519_base_noclamp(r)
+
+        // h = hash(R || pubKey || msg) mod q
+        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([R, publicKey, data])));
+
+        // \(5): S = (r + h * k) mod q
+        const S = crypto_core_ed25519_scalar_add(r, crypto_core_ed25519_scalar_mul(h, scalar))
+
+        return Buffer.concat([R, S]);
+    }
+
     /**
      * Raw Signing function called by signData and signTransaction
      *
@@ -137,25 +168,7 @@ export class XHDWalletAPI {
     private async rawSign(rootKey: Uint8Array, bip44Path: number[], data: Uint8Array, derivationType: BIP32DerivationType): Promise<Uint8Array> {
         const raw: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
-        const scalar: Uint8Array = raw.slice(0, 32);
-        const kR: Uint8Array = raw.slice(32, 64);
-
-        // \(1): pubKey = scalar * G (base point, no clamp)
-        const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
-
-        // \(2): h = hash(c || msg) mod q
-        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([kR, data])))
-
-        // \(4):  R = r * G (base point, no clamp)
-        const R = crypto_scalarmult_ed25519_base_noclamp(r)
-
-        // h = hash(R || pubKey || msg) mod q
-        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([R, publicKey, data])));
-
-        // \(5): S = (r + h * k) mod q
-        const S = crypto_core_ed25519_scalar_add(r, crypto_core_ed25519_scalar_mul(h, scalar))
-
-        return Buffer.concat([R, S]);
+        return this.extendedSign(raw, data)
     }
 
     /**
