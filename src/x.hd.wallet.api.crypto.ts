@@ -119,23 +119,23 @@ export class XHDWalletAPI {
         return extendedKey.subarray(0, 32) // only public key
     }
 
-    /** Signing function that signs data with the provided extended private key: scalar || prefix.
+    /** Signing function that signs data with the provided expanded private key: scalar || prefix.
      * This function should only be used in cases where the caller has the derived private key but not the root key
      *
      * Ref: https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.6
      *
-     * @param extendedPrivateKey - extended private key (scalar || prefix) used for signing, should be either 
+     * @param expandedPrivateKey - extended private key (scalar || prefix) used for signing, should be either 
      * 64 bytes (scalar || prefix) or 96 bytes (scalar || prefix || chainCode) depending on the use case
      *
      * @param data - data to be signed in raw bytes
      * @returns signature holding R and S, totally 64 bytes
      */
-    extendedSign(extendedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
-        if (extendedPrivateKey.length !== 64 && extendedPrivateKey.length !== 96) {
+    expandedSign(expandedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
+        if (expandedPrivateKey.length !== 64 && expandedPrivateKey.length !== 96) {
             throw Error("Invalid extended private key length, should be either 64 or 96 bytes")
         }
-        const scalar: Uint8Array = extendedPrivateKey.slice(0, 32);
-        const kR: Uint8Array = extendedPrivateKey.slice(32, 64);
+        const scalar: Uint8Array = expandedPrivateKey.slice(0, 32);
+        const kR: Uint8Array = expandedPrivateKey.slice(32, 64);
 
         // \(1): pubKey = scalar * G (base point, no clamp)
         const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
@@ -173,7 +173,7 @@ export class XHDWalletAPI {
     private async rawSign(rootKey: Uint8Array, bip44Path: number[], data: Uint8Array, derivationType: BIP32DerivationType): Promise<Uint8Array> {
         const raw: Uint8Array = await this.deriveKey(rootKey, bip44Path, true, derivationType)
 
-        return this.extendedSign(raw, data)
+        return this.expandedSign(raw, data)
     }
 
     /**

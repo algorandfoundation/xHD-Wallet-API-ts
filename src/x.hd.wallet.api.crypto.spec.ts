@@ -219,8 +219,8 @@ describe("Contextual Derivation & Signing", () => {
                 const derivedPrivateKey = await cryptoService.deriveKey(rootKey, bip44Path, true, BIP32DerivationType.Peikert)
                 const extendedPrivateKey64 = derivedPrivateKey.slice(0, 64)
 
-                const signatureFrom64 = cryptoService.extendedSign(extendedPrivateKey64, message)
-                const signatureFrom96 = cryptoService.extendedSign(derivedPrivateKey, message)
+                const signatureFrom64 = cryptoService.expandedSign(extendedPrivateKey64, message)
+                const signatureFrom96 = cryptoService.expandedSign(derivedPrivateKey, message)
 
                 expect(signatureFrom64).toEqual(signatureFrom96)
             })
@@ -229,7 +229,7 @@ describe("Contextual Derivation & Signing", () => {
                 const invalidExtendedPrivateKey = new Uint8Array(randomBytes(63))
                 const message = new Uint8Array(randomBytes(32))
 
-                expect(() => cryptoService.extendedSign(invalidExtendedPrivateKey, message)).toThrow(
+                expect(() => cryptoService.expandedSign(invalidExtendedPrivateKey, message)).toThrow(
                     "Invalid extended private key length, should be either 64 or 96 bytes"
                 )
             })
