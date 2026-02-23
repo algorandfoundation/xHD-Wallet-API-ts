@@ -224,7 +224,8 @@ describe("Contextual Derivation & Signing", () => {
 
                 expect(signatureFrom64).toEqual(signatureFrom96)
 
-                const publicKey = await cryptoService.deriveKey(rootKey, bip44Path, true, BIP32DerivationType.Peikert)
+                const extendedPublicKey = await cryptoService.deriveKey(rootKey, bip44Path, false, BIP32DerivationType.Peikert)
+                const publicKey = extendedPublicKey.subarray(0, 32)
                 const isValid: boolean = await cryptoService.verifyWithPublicKey(signatureFrom64, message, publicKey)
                 expect(isValid).toBe(true) 
             })
