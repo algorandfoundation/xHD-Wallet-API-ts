@@ -212,7 +212,7 @@ describe("Contextual Derivation & Signing", () => {
             })
 
         describe("expandedSign", () => {
-            it("\(OK) 64-byte and 96-byte extended keys produce same signature", async () => {
+            it("\(OK) 64-byte and 96-byte expanded keys produce same signature", async () => {
                 const message = new Uint8Array(randomBytes(64))
                 const bip44Path = [harden(44), harden(283), harden(1), 0, 2]
 
@@ -235,7 +235,7 @@ describe("Contextual Derivation & Signing", () => {
                 const message = new Uint8Array(randomBytes(32))
 
                 expect(() => cryptoService.expandedSign(invalidExtendedPrivateKey, message)).toThrow(
-                    "Invalid extended private key length, should be either 64 or 96 bytes"
+                    "Invalid expanded private key length, should be either 64 or 96 bytes"
                 )
             })
         })

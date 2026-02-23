@@ -124,7 +124,7 @@ export class XHDWalletAPI {
      *
      * Ref: https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.6
      *
-     * @param expandedPrivateKey - extended private key (scalar || prefix) used for signing, should be either
+     * @param expandedPrivateKey - expanded private key (scalar || prefix) used for signing, should be either
      * 64 bytes (scalar || prefix) or 96 bytes (scalar || prefix || chainCode) depending on the use case
      *
      * @param data - data to be signed in raw bytes
