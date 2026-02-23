@@ -223,6 +223,10 @@ describe("Contextual Derivation & Signing", () => {
                 const signatureFrom96 = cryptoService.expandedSign(derivedPrivateKey, message)
 
                 expect(signatureFrom64).toEqual(signatureFrom96)
+
+                const publicKey = await cryptoService.deriveKey(rootKey, bip44Path, true, BIP32DerivationType.Peikert)
+                const isValid: boolean = await cryptoService.verifyWithPublicKey(signatureFrom64, message, publicKey)
+                expect(isValid).toBe(true) 
             })
 
             it("\(FAIL) Throws on invalid extended private key length", () => {
