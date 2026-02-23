@@ -132,7 +132,7 @@ export class XHDWalletAPI {
      */
     expandedSign(expandedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
         if (expandedPrivateKey.length !== 64 && expandedPrivateKey.length !== 96) {
-            throw Error("Invalid extended private key length, should be either 64 or 96 bytes")
+            throw Error("Invalid expanded private key length, should be either 64 or 96 bytes")
         }
         const scalar: Uint8Array = expandedPrivateKey.slice(0, 32);
         const kR: Uint8Array = expandedPrivateKey.slice(32, 64);
