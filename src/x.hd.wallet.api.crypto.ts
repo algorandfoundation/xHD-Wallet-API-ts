@@ -124,11 +124,16 @@ export class XHDWalletAPI {
      *
      * Ref: https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.6
      *
-     * @param extendedPrivateKey - extended private key (scalar || prefix) used for signing, should be at least 64 bytes long
+     * @param extendedPrivateKey - extended private key (scalar || prefix) used for signing, should be either 
+     * 64 bytes (scalar || prefix) or 96 bytes (scalar || prefix || chainCode) depending on the use case
+     *
      * @param data - data to be signed in raw bytes
      * @returns signature holding R and S, totally 64 bytes
      */
-     extendedSign(extendedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
+    extendedSign(extendedPrivateKey: Uint8Array, data: Uint8Array): Uint8Array {
+        if (extendedPrivateKey.length !== 64 && extendedPrivateKey.length !== 96) {
+            throw Error("Invalid extended private key length, should be either 64 or 96 bytes")
+        }
         const scalar: Uint8Array = extendedPrivateKey.slice(0, 32);
         const kR: Uint8Array = extendedPrivateKey.slice(32, 64);
 
