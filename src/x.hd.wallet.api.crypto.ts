@@ -119,6 +119,20 @@ export class XHDWalletAPI {
         return extendedKey.subarray(0, 32) // only public key
     }
 
+    /** Function to derive the public key from an expanded private key (scalar || prefix)
+     *
+     * @param expandedPrivateKey - expanded private key (scalar || prefix) used for signing, should be either
+     * 64 bytes (scalar || prefix) or 96 bytes (scalar || prefix || chainCode)
+     * @returns public key in raw bytes
+     */
+    expandedPrivateKeyToPublicKey(expandedPrivateKey: Uint8Array): Uint8Array {
+        if (expandedPrivateKey.length !== 64 && expandedPrivateKey.length !== 96) {
+            throw Error("Invalid expanded private key length, should be either 64 or 96 bytes")
+        }
+        const scalar: Uint8Array = expandedPrivateKey.slice(0, 32);
+        return crypto_scalarmult_ed25519_base_noclamp(scalar)
+    }
+
     /** Signing function that signs data with the provided expanded private key: scalar || prefix.
      * This function should only be used in cases where the caller has the derived private key but not the root key
      *

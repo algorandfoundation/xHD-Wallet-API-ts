@@ -211,6 +211,32 @@ describe("Contextual Derivation & Signing", () => {
                 })
             })
 
+        describe("expandedPrivateKeyToPublicKey", () => {
+            it("\(OK) 64-byte and 96-byte expanded keys produce same public key", async () => {
+                const bip44Path = [harden(44), harden(283), harden(1), 0, 2]
+
+                const derivedPrivateKey = await cryptoService.deriveKey(rootKey, bip44Path, true, BIP32DerivationType.Peikert)
+                const extendedPrivateKey64 = derivedPrivateKey.slice(0, 64)
+
+                const publicKeyFrom64 = cryptoService.expandedPrivateKeyToPublicKey(extendedPrivateKey64)
+                const publicKeyFrom96 = cryptoService.expandedPrivateKeyToPublicKey(derivedPrivateKey)
+
+                expect(publicKeyFrom64).toEqual(publicKeyFrom96)
+
+                const extendedPublicKey = await cryptoService.deriveKey(rootKey, bip44Path, false, BIP32DerivationType.Peikert)
+                const expectedPublicKey = extendedPublicKey.subarray(0, 32)
+                expect(publicKeyFrom64).toEqual(expectedPublicKey)
+            })
+
+            it("\(FAIL) Throws on invalid expanded private key length", () => {
+                const invalidExpandedPrivateKey = new Uint8Array(randomBytes(63))
+
+                expect(() => cryptoService.expandedPrivateKeyToPublicKey(invalidExpandedPrivateKey)).toThrow(
+                    "Invalid expanded private key length, should be either 64 or 96 bytes"
+                )
+            })
+        })
+
         describe("expandedSign", () => {
             it("\(OK) 64-byte and 96-byte expanded keys produce same signature", async () => {
                 const message = new Uint8Array(randomBytes(64))
