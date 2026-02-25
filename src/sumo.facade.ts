@@ -4,6 +4,7 @@ import { ed25519, x25519 } from "@noble/curves/ed25519.js";
 import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { sha512 } from "@noble/hashes/sha2.js";
+import { base64Encode } from './uint8.js';
 
 // ===========================
 // Libsodium Type Definitions
@@ -428,10 +429,11 @@ export function crypto_secretbox_open_easy(
  */
 export function to_base64(data: Uint8Array | string): string {
   let base64: string;
+  // prefer a Buffer-free implementation
   if (typeof data === "string") {
-    base64 = Buffer.from(data, "utf8").toString("base64");
+    base64 = base64Encode(data);
   } else {
-    base64 = Buffer.from(data).toString("base64");
+    base64 = base64Encode(data);
   }
 
   // Remove padding to match libsodium's to_base64 behavior

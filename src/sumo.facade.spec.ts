@@ -332,7 +332,7 @@ describe("Sumo Facade Functionality", () => {
 
   describe("Symmetric Encryption (SecretBox)", () => {
     it("should encrypt and decrypt successfully", () => {
-      const message = new Uint8Array(Buffer.from("Hello, World!"));
+      const message = new TextEncoder().encode("Hello, World!");
       const nonce = new Uint8Array(24).fill(0x42); // 24 byte nonce
       const key = new Uint8Array(32).fill(0x33); // 32 byte key
 
@@ -343,7 +343,7 @@ describe("Sumo Facade Functionality", () => {
     });
 
     it("should produce different ciphertexts for different nonces", () => {
-      const message = new Uint8Array(Buffer.from("test"));
+      const message = new TextEncoder().encode("test");
       const nonce1 = new Uint8Array(24).fill(0x01);
       const nonce2 = new Uint8Array(24).fill(0x02);
       const key = new Uint8Array(32).fill(0x33);
@@ -355,7 +355,7 @@ describe("Sumo Facade Functionality", () => {
     });
 
     it("should fail decryption with wrong key", () => {
-      const message = new Uint8Array(Buffer.from("secret"));
+      const message = new TextEncoder().encode("secret");
       const nonce = new Uint8Array(24).fill(0x42);
       const key1 = new Uint8Array(32).fill(0x33);
       const key2 = new Uint8Array(32).fill(0x44); // Different key
@@ -368,7 +368,7 @@ describe("Sumo Facade Functionality", () => {
     });
 
     it("should fail decryption with wrong nonce", () => {
-      const message = new Uint8Array(Buffer.from("secret"));
+      const message = new TextEncoder().encode("secret");
       const nonce1 = new Uint8Array(24).fill(0x42);
       const nonce2 = new Uint8Array(24).fill(0x43); // Different nonce
       const key = new Uint8Array(32).fill(0x33);
@@ -421,7 +421,7 @@ describe("Sumo Facade Functionality", () => {
     });
 
     it("should handle corrupted ciphertext", () => {
-      const message = new Uint8Array(Buffer.from("test message"));
+      const message = new TextEncoder().encode("test message");
       const nonce = new Uint8Array(24).fill(0x42);
       const key = new Uint8Array(32).fill(0x33);
 
@@ -437,7 +437,7 @@ describe("Sumo Facade Functionality", () => {
     });
 
     it("should handle truncated ciphertext", () => {
-      const message = new Uint8Array(Buffer.from("test"));
+      const message = new TextEncoder().encode("test");
       const nonce = new Uint8Array(24).fill(0x42);
       const key = new Uint8Array(32).fill(0x33);
 

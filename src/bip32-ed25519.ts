@@ -1,10 +1,12 @@
-import { createHash, createHmac } from "crypto";
+import { sha256, sha512 } from "@noble/hashes/sha2.js";
+import { hmac } from "@noble/hashes/hmac.js";
 
 import {
   crypto_core_ed25519_add,
   crypto_scalarmult_ed25519_base_noclamp,
 } from "./sumo.facade.js";
 import BN from 'bn.js'
+import { concatUint8Arrays, writeUInt32LE, bytesToHex } from './uint8.js';
 
 /**
  *
@@ -17,15 +19,15 @@ import BN from 'bn.js'
  * @param seed - 256 bite seed generated from BIP39 Mnemonic
  * @returns - Extended root key (kL, kR, c) where kL is the left 32 bytes of the root key, kR is the right 32 bytes of the root key, and c is the chain code. Total 96 bytes
  */
-export function fromSeed(seed: Buffer): Uint8Array {
+export function fromSeed(seed: Uint8Array): Uint8Array {
   // k = H512(seed)
-  let k: Buffer = createHash("sha512").update(seed).digest();
-  let kL: Buffer = k.subarray(0, 32);
-  let kR: Buffer = k.subarray(32, 64);
+  let k: Uint8Array = sha512(seed);
+  let kL: Uint8Array = k.subarray(0, 32);
+  let kR: Uint8Array = k.subarray(32, 64);
 
   // While the third highest bit of the last byte of kL is not zero
   while ((kL[31] & 0b00100000) !== 0) {
-    k = createHmac("sha512", kL).update(kR).digest();
+    k = hmac(sha512, kL, kR);
     kL = k.subarray(0, 32);
     kR = k.subarray(32, 64);
   }
@@ -39,8 +41,8 @@ export function fromSeed(seed: Buffer): Uint8Array {
 
   // chain root code
   // SHA256(0x01||k)
-  const c: Buffer = createHash("sha256").update(Buffer.concat([new Uint8Array([0x01]), seed])).digest();
-  return new Uint8Array(Buffer.concat([kL, kR, c]));
+  const c: Uint8Array = sha256(concatUint8Arrays([new Uint8Array([0x01]), seed]));
+  return concatUint8Arrays([kL, kR, c]);
 }
 
 /**
@@ -95,8 +97,8 @@ export async function deriveChildNodePrivate(
   index: number,
   g: number = 9
 ): Promise<Uint8Array> {
-  const kL: Buffer = Buffer.from(extendedKey.subarray(0, 32));
-  const kR: Buffer = Buffer.from(extendedKey.subarray(32, 64));
+  const kL: Uint8Array = extendedKey.subarray(0, 32);
+  const kR: Uint8Array = extendedKey.subarray(32, 64);
   const cc: Uint8Array = extendedKey.subarray(64, 96);
 
   // Steps 1 & 3: Produce Z and child chain code, in accordance with hardening branching logic
@@ -132,9 +134,9 @@ export async function deriveChildNodePrivate(
 
   // zL = kL + 8 * truncated(z_left_hand_side)
   // Big Integers + little Endianess
-  const klBigNum = new BN(kL, 16, 'le')
+  const klBigNum = new BN(bytesToHex(kL), 16, 'le')
   const big8 = new BN(8);
-  const zlBigNum = new BN(zL, 16, 'le')
+  const zlBigNum = new BN(bytesToHex(zL), 16, 'le')
 
   const zlBigNumMul8 = klBigNum.add(zlBigNum.mul(big8))
 
@@ -143,15 +145,15 @@ export async function deriveChildNodePrivate(
     throw Error('zL * 8 is larger than 2^255, which is not safe')
   }
 
-  const left = klBigNum.add(zlBigNum.mul(big8)).toArrayLike(Buffer, 'le', 32);
+  const left = new Uint8Array(klBigNum.add(zlBigNum.mul(big8)).toArray('le', 32));
 
-  let right = new BN(kR, 16, 'le').add(new BN(zRight, 16, 'le')).toArrayLike(Buffer, 'le').slice(0, 32);
-
-  const rightBuffer = Buffer.alloc(32);
-  Buffer.from(right).copy(rightBuffer, 0, 0, right.length) // padding with zeros if needed
+  let rightArr = new BN(bytesToHex(kR), 16, 'le').add(new BN(bytesToHex(zRight), 16, 'le')).toArray('le');
+  rightArr = rightArr.slice(0, 32);
+  const rightBuffer = new Uint8Array(32);
+  rightBuffer.set(new Uint8Array(rightArr), 0); // padding with zeros if needed
 
   // return (kL, kR, c)
-  return new Uint8Array(Buffer.concat([left, rightBuffer, childChainCode]))
+  return concatUint8Arrays([left, rightBuffer, childChainCode])
 }
 
 /**
@@ -169,17 +171,17 @@ export async function deriveChildNodePrivate(
 export async function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Promise<Uint8Array> {
   if (index > 0x80000000) throw Error('can not derive public key with harden')
 
-  const pk: Buffer = Buffer.from(extendedKey.subarray(0, 32))
-  const cc: Buffer = Buffer.from(extendedKey.subarray(32, 64))
+  const pk: Uint8Array = extendedKey.subarray(0, 32)
+  const cc: Uint8Array = extendedKey.subarray(32, 64)
 
-  const data: Buffer = Buffer.allocUnsafe(1 + 32 + 4);
-  data.writeUInt32LE(index, 1 + 32);
+  const data: Uint8Array = new Uint8Array(1 + 32 + 4);
+  writeUInt32LE(data, index, 1 + 32);
 
-  pk.copy(data, 1);
+  data.set(pk, 1);
 
   // Step 1: Compute Z
   data[0] = 0x02;
-  const z: Buffer = createHmac("sha512", cc).update(data).digest();
+  const z: Uint8Array = hmac(sha512, cc, data);
 
   // Step 2: Compute child public key
   const zL: Uint8Array = trunc_256_minus_g_bits(z.subarray(0, 32), g)
@@ -194,15 +196,15 @@ export async function deriveChildNodePublic(extendedKey: Uint8Array, index: numb
   // #######################################
   // zL = 8 * trunc_256_minus_g_bits (z_left_hand_side, g)
 
-  const left = new BN(zL, 16, 'le').mul(new BN(8)).toArrayLike(Buffer, 'le', 32);
+  const left = new Uint8Array(new BN(bytesToHex(zL), 16, 'le').mul(new BN(8)).toArray('le', 32));
   const p: Uint8Array = crypto_scalarmult_ed25519_base_noclamp(left);
 
   // Step 3: Compute child chain code
   data[0] = 0x03;
-  const fullChildChainCode: Buffer = createHmac("sha512", cc).update(data).digest();
-  const childChainCode: Buffer = fullChildChainCode.subarray(32, 64);
+  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
-  return new Uint8Array(Buffer.concat([crypto_core_ed25519_add(p, pk), childChainCode]))
+  return concatUint8Arrays([crypto_core_ed25519_add(p, pk), childChainCode])
 }
 
 /**
@@ -219,18 +221,18 @@ function derivedNonHardened(
   cc: Uint8Array,
   index: number
 ): { z: Uint8Array; childChainCode: Uint8Array } {
-  const data: Buffer = Buffer.allocUnsafe(1 + 32 + 4);
-  data.writeUInt32LE(index, 1 + 32);
+  const data: Uint8Array = new Uint8Array(1 + 32 + 4);
+  writeUInt32LE(data, index, 1 + 32);
 
-  var pk = Buffer.from(crypto_scalarmult_ed25519_base_noclamp(kl));
-  pk.copy(data, 1);
+  const pk = crypto_scalarmult_ed25519_base_noclamp(kl);
+  data.set(pk, 1);
 
   data[0] = 0x02;
-  const z: Buffer = createHmac("sha512", cc).update(data).digest();
+  const z: Uint8Array = hmac(sha512, cc, data);
 
   data[0] = 0x03;
-  const fullChildChainCode: Buffer = createHmac("sha512", cc).update(data).digest();
-  const childChainCode: Buffer = fullChildChainCode.subarray(32, 64);
+  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
   return { z, childChainCode };
 }
@@ -251,16 +253,16 @@ function deriveHardened(
   cc: Uint8Array,
   index: number
 ): { z: Uint8Array; childChainCode: Uint8Array } {
-  const data: Buffer = Buffer.allocUnsafe(1 + 64 + 4);
-  data.writeUInt32LE(index, 1 + 64);
-  Buffer.from(kl).copy(data, 1);
-  Buffer.from(kr).copy(data, 1 + 32);
+  const data: Uint8Array = new Uint8Array(1 + 64 + 4);
+  writeUInt32LE(data, index, 1 + 64);
+  data.set(kl, 1);
+  data.set(kr, 1 + 32);
 
   data[0] = 0x00;
-  const z: Buffer = createHmac("sha512", cc).update(data).digest();
+  const z: Uint8Array = hmac(sha512, cc, data);
   data[0] = 0x01;
-  const fullChildChainCode: Buffer = createHmac("sha512", cc).update(data).digest();
-  const childChainCode: Buffer = fullChildChainCode.subarray(32, 64);
+  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
   return { z, childChainCode };
 }
