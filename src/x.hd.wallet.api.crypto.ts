@@ -64,7 +64,7 @@ export interface SignMetadata {
 
 export const harden = (num: number): number => 0x80_00_00_00 + num;
 
-function GetBIP44PathFromContext(context: KeyContext, account:number, key_index: number): number[] {
+function GetBIP44PathFromContext(context: KeyContext, account: number, key_index: number): number[] {
     switch (context) {
         case KeyContext.Address:
             return [harden(44), harden(283), harden(account), 0, key_index]
@@ -80,7 +80,7 @@ export const ERROR_TAGS_FOUND: Error = Error("Transactions tags found")
 
 export class XHDWalletAPI {
 
-    constructor() {}
+    constructor() { }
 
     /**
      * Derives a child key from the root key based on BIP44 path
@@ -113,7 +113,7 @@ export class XHDWalletAPI {
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
      * @returns - public key 32 bytes
      */
-    async keyGen(rootKey: Uint8Array, context: KeyContext, account:number, keyIndex: number, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
+    async keyGen(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
         const extendedKey: Uint8Array = await this.deriveKey(rootKey, bip44Path, false, derivationType)
@@ -209,7 +209,7 @@ export class XHDWalletAPI {
     async signAlgoTransaction(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, prefixEncodedTx: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
-        const sig =  await this.rawSign(rootKey, bip44Path, prefixEncodedTx, derivationType)
+        const sig = await this.rawSign(rootKey, bip44Path, prefixEncodedTx, derivationType)
 
         return sig
     }
@@ -239,10 +239,6 @@ export class XHDWalletAPI {
             case Encoding.MSGPACK:
                 // algo-msgpack-with-bigint expects a Buffer-like input in Node.js
                 decoded = msgpack.decode<Uint8Array>(Buffer.from(message)) as Uint8Array
-                // debug: log decoded runtime shape to help schema validation issues
-                // (kept intentionally lightweight)
-                // eslint-disable-next-line no-console
-                console.log('validateData: decoded type=', decoded?.constructor?.name, 'isArray=', Array.isArray(decoded), 'len=', (decoded as any)?.length)
                 break
 
             case Encoding.NONE:
@@ -271,16 +267,7 @@ export class XHDWalletAPI {
         //@ts-expect-error, this is constructable
         const ajv = new Ajv()
         const validate = ajv.compile(metadata.schema)
-
-        const valid = validate(toValidate)
-
-        if (!valid) {
-            // prefer validate.errors (runtime errors from compiled validator)
-            // eslint-disable-next-line no-console
-            console.log('validateData: ajv errors=', (validate as any).errors)
-        }
-
-        return valid
+        return validate(toValidate)
     }
 
     /**
@@ -295,9 +282,9 @@ export class XHDWalletAPI {
         // Prefixes taken from go-algorand node software code
         // https://github.com/algorand/go-algorand/blob/master/protocol/hash.go
         const prefixes: string[] = [
-            "appID","arc","aB","aD","aO","aP","aS","AS","B256","BH","BR","CR","GE","KP","MA","MB",
-            "MX","NIC","NIR","NIV","NPR","OT1","OT2","PF","PL","Program","ProgData","PS","PK","SD",
-            "SpecialAddr","STIB","spc","spm","spp","sps","spv","TE","TG","TL","TX","VO"
+            "appID", "arc", "aB", "aD", "aO", "aP", "aS", "AS", "B256", "BH", "BR", "CR", "GE", "KP", "MA", "MB",
+            "MX", "NIC", "NIR", "NIV", "NPR", "OT1", "OT2", "PF", "PL", "Program", "ProgData", "PS", "PK", "SD",
+            "SpecialAddr", "STIB", "spc", "spm", "spp", "sps", "spv", "TE", "TG", "TL", "TX", "VO"
         ]
         for (const prefix of prefixes) {
             if (new TextDecoder().decode(message.subarray(0, prefix.length)) === prefix) {
