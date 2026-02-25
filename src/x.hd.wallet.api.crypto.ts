@@ -13,6 +13,7 @@ import * as msgpack from "algo-msgpack-with-bigint"
 import Ajv from "ajv"
 //@ts-expect-error, we handle this with ts-alias
 import { deriveChildNodePrivate } from './bip32-ed25519';
+import { concatUint8Arrays, base64Decode } from './uint8.js';
 
 /**
  *
@@ -27,12 +28,12 @@ export function computeSharedBlake2bSecret(meFirst: boolean): ECDHCallback {
     return async (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array): Promise<Uint8Array> => {
         let concatenation: Uint8Array
         if (meFirst) {
-            concatenation = Buffer.concat([sharedPoint, ourPubCurve25519, otherPartyPubCurve25519])
+            concatenation = concatUint8Arrays([sharedPoint, ourPubCurve25519, otherPartyPubCurve25519])
         } else {
-            concatenation = Buffer.concat([sharedPoint, otherPartyPubCurve25519, ourPubCurve25519])
+            concatenation = concatUint8Arrays([sharedPoint, otherPartyPubCurve25519, ourPubCurve25519])
         }
 
-        return crypto_generichash(32, new Uint8Array(concatenation))
+        return crypto_generichash(32, concatenation)
     }
 }
 
@@ -101,7 +102,7 @@ export class XHDWalletAPI {
 
         // extended public key
         // [public] [nodeCC]
-        return new Uint8Array(Buffer.concat([crypto_scalarmult_ed25519_base_noclamp(rootKey.subarray(0, 32)), rootKey.subarray(64, 96)]))
+        return concatUint8Arrays([crypto_scalarmult_ed25519_base_noclamp(rootKey.subarray(0, 32)), rootKey.subarray(64, 96)])
     }
 
     /**
@@ -144,18 +145,18 @@ export class XHDWalletAPI {
         const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
 
         // \(2): h = hash(c || msg) mod q
-        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([kR, data])))
+        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(concatUint8Arrays([kR, data])))
 
         // \(4):  R = r * G (base point, no clamp)
         const R = crypto_scalarmult_ed25519_base_noclamp(r)
 
         // h = hash(R || pubKey || msg) mod q
-        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([R, publicKey, data])));
+        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(concatUint8Arrays([R, publicKey, data])));
 
         // \(5): S = (r + h * k) mod q
         const S = crypto_core_ed25519_scalar_add(r, crypto_core_ed25519_scalar_mul(h, scalar))
 
-        return Buffer.concat([R, S]);
+        return concatUint8Arrays([R, S]);
     }
 
     /**
@@ -223,8 +224,9 @@ export class XHDWalletAPI {
      */
     private validateData(message: Uint8Array, metadata: SignMetadata): boolean | Error {
 
-        // Check that decoded doesn't include the following prefixes: TX, MX, progData, Program
-        // These prefixes are reserved for the protocol
+        // First, perform an early check on the raw message bytes for Algorand protocol tags.
+        // This prevents attempting to decode a buffer that already includes a reserved prefix
+        // (e.g., "TX" + msgpack payload) which would cause msgpack to throw a decode error.
         if (this.hasAlgorandTags(message)) {
             return ERROR_TAGS_FOUND
         }
@@ -232,10 +234,15 @@ export class XHDWalletAPI {
         let decoded: Uint8Array
         switch (metadata.encoding) {
             case Encoding.BASE64:
-                decoded = new Uint8Array(Buffer.from(Buffer.from(message).toString(), 'base64'))
+                decoded = base64Decode(new TextDecoder().decode(message))
                 break
             case Encoding.MSGPACK:
-                decoded = msgpack.decode<Uint8Array>(message) as Uint8Array
+                // algo-msgpack-with-bigint expects a Buffer-like input in Node.js
+                decoded = msgpack.decode<Uint8Array>(Buffer.from(message)) as Uint8Array
+                // debug: log decoded runtime shape to help schema validation issues
+                // (kept intentionally lightweight)
+                // eslint-disable-next-line no-console
+                console.log('validateData: decoded type=', decoded?.constructor?.name, 'isArray=', Array.isArray(decoded), 'len=', (decoded as any)?.length)
                 break
 
             case Encoding.NONE:
@@ -245,14 +252,33 @@ export class XHDWalletAPI {
                 throw Error("Invalid encoding")
         }
 
-        // validate with schema
+        // normalize binary/Buffer decoded payloads into plain JS objects that AJV can validate
+        let toValidate: any = decoded
+        // Buffer detection (Node) — Buffer may expose prototype methods that AJV treats as properties
+        // Convert Buffer/Uint8Array into an object with numeric string keys to match the schema shape
+        // (e.g. {"0": 12, "1": 34, ...})
+        // eslint-disable-next-line no-undef
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(decoded)) {
+            const obj: Record<string, number> = {}
+            for (let i = 0; i < decoded.length; i++) obj[i] = (decoded as any)[i]
+            toValidate = obj
+        } else if (decoded instanceof Uint8Array) {
+            const obj: Record<string, number> = {}
+            for (let i = 0; i < decoded.length; i++) obj[i] = (decoded as any)[i]
+            toValidate = obj
+        }
+
         //@ts-expect-error, this is constructable
         const ajv = new Ajv()
-		const validate = ajv.compile(metadata.schema)
+        const validate = ajv.compile(metadata.schema)
 
-        const valid = validate(decoded)
+        const valid = validate(toValidate)
 
-        if (!valid) console.log(ajv.errors)
+        if (!valid) {
+            // prefer validate.errors (runtime errors from compiled validator)
+            // eslint-disable-next-line no-console
+            console.log('validateData: ajv errors=', (validate as any).errors)
+        }
 
         return valid
     }
@@ -274,7 +300,7 @@ export class XHDWalletAPI {
             "SpecialAddr","STIB","spc","spm","spp","sps","spv","TE","TG","TL","TX","VO"
         ]
         for (const prefix of prefixes) {
-            if (Buffer.from(message.subarray(0, prefix.length)).toString("ascii") === prefix) {
+            if (new TextDecoder().decode(message.subarray(0, prefix.length)) === prefix) {
                 return true
             }
         }
