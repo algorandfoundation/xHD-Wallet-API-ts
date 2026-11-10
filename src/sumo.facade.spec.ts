@@ -5,18 +5,19 @@ import {
     crypto_core_ed25519_scalar_reduce,
     crypto_generichash,
     crypto_hash_sha512,
-    crypto_kx_client_session_keys,
-    crypto_kx_server_session_keys,
     crypto_scalarmult,
     crypto_scalarmult_ed25519_base_noclamp,
-    crypto_secretbox_easy,
-    crypto_secretbox_open_easy,
     crypto_sign_ed25519_pk_to_curve25519,
+    crypto_sign_verify_detached,
+} from "./sumo.facade.js";
+import { crypto_secretbox_easy, crypto_secretbox_open_easy } from "./test-utils/secretbox.js";
+import {
+    crypto_kx_client_session_keys,
+    crypto_kx_server_session_keys,
     crypto_sign_ed25519_sk_to_curve25519,
     crypto_sign_keypair,
-    crypto_sign_verify_detached,
     to_base64,
-} from "./sumo.facade.js";
+} from "./test-utils/sumo.js";
 
 import _sodium from "libsodium-wrappers-sumo";
 
@@ -59,13 +60,11 @@ describe("Sumo Facade Functionality", () => {
       expect(result.length).toBe(32);
     });
 
-    it("should handle X25519 scalar multiplication with invalid inputs gracefully", () => {
+    it("should handle X25519 scalar multiplication with invalid inputs gracefully", async () => {
       const validPriv = new Uint8Array(32).fill(1);
       const invalidPub = new Uint8Array(31); // Invalid length
 
-      expect(() => {
-        crypto_scalarmult(validPriv, invalidPub);
-      }).toThrow();
+      await expect(crypto_scalarmult(validPriv, invalidPub)).rejects.toThrow();
     });
   });
 
@@ -477,7 +476,7 @@ describe("Sumo Facade Functionality", () => {
   });
 
   describe("Signature Verification", () => {
-    it("should verify valid detached signatures", () => {
+    it("should verify valid detached signatures", async () => {
       const keyPair = crypto_sign_keypair();
       const message = new Uint8Array([1, 2, 3, 4, 5]);
 
@@ -486,113 +485,113 @@ describe("Sumo Facade Functionality", () => {
       const validSignature = new Uint8Array(64).fill(0x01);
 
       // Test input validation
-      const result = crypto_sign_verify_detached(validSignature, message, keyPair.publicKey);
+      const result = await crypto_sign_verify_detached(validSignature, message, keyPair.publicKey);
       expect(typeof result).toBe("boolean");
     });
 
-    it("should reject signatures with invalid length", () => {
+    it("should reject signatures with invalid length", async () => {
       const keyPair = crypto_sign_keypair();
       const message = new Uint8Array([1, 2, 3]);
       const shortSignature = new Uint8Array(63); // Invalid length
       const longSignature = new Uint8Array(65); // Invalid length
 
-      const result1 = crypto_sign_verify_detached(shortSignature, message, keyPair.publicKey);
-      const result2 = crypto_sign_verify_detached(longSignature, message, keyPair.publicKey);
+      const result1 = await crypto_sign_verify_detached(shortSignature, message, keyPair.publicKey);
+      const result2 = await crypto_sign_verify_detached(longSignature, message, keyPair.publicKey);
 
       expect(result1).toBe(false);
       expect(result2).toBe(false);
     });
 
-    it("should reject public keys with invalid length", () => {
+    it("should reject public keys with invalid length", async () => {
       const message = new Uint8Array([1, 2, 3]);
       const validSignature = new Uint8Array(64);
       const shortPublicKey = new Uint8Array(31); // Invalid length
       const longPublicKey = new Uint8Array(33); // Invalid length
 
-      const result1 = crypto_sign_verify_detached(validSignature, message, shortPublicKey);
-      const result2 = crypto_sign_verify_detached(validSignature, message, longPublicKey);
+      const result1 = await crypto_sign_verify_detached(validSignature, message, shortPublicKey);
+      const result2 = await crypto_sign_verify_detached(validSignature, message, longPublicKey);
 
       expect(result1).toBe(false);
       expect(result2).toBe(false);
     });
 
-    it("should handle empty messages", () => {
+    it("should handle empty messages", async () => {
       const keyPair = crypto_sign_keypair();
       const emptyMessage = new Uint8Array(0);
       const signature = new Uint8Array(64);
 
-      const result = crypto_sign_verify_detached(signature, emptyMessage, keyPair.publicKey);
+      const result = await crypto_sign_verify_detached(signature, emptyMessage, keyPair.publicKey);
       expect(typeof result).toBe("boolean");
     });
 
-    it("should handle large messages", () => {
+    it("should handle large messages", async () => {
       const keyPair = crypto_sign_keypair();
       const largeMessage = new Uint8Array(100000).fill(0xAA);
       const signature = new Uint8Array(64);
 
-      const result = crypto_sign_verify_detached(signature, largeMessage, keyPair.publicKey);
+      const result = await crypto_sign_verify_detached(signature, largeMessage, keyPair.publicKey);
       expect(typeof result).toBe("boolean");
     });
 
-    it("should handle malformed signatures gracefully", () => {
+    it("should handle malformed signatures gracefully", async () => {
       const keyPair = crypto_sign_keypair();
       const message = new Uint8Array([1, 2, 3]);
       const malformedSignature = new Uint8Array(64).fill(0xFF); // All 0xFF bytes
 
-      const result = crypto_sign_verify_detached(malformedSignature, message, keyPair.publicKey);
+      const result = await crypto_sign_verify_detached(malformedSignature, message, keyPair.publicKey);
       expect(result).toBe(false);
     });
   });
 
   describe("SHA-512 Hash Function", () => {
-    it("should produce 64-byte hashes", () => {
+    it("should produce 64-byte hashes", async () => {
       const message = new Uint8Array([1, 2, 3, 4, 5]);
-      const hash = crypto_hash_sha512(message);
+      const hash = await crypto_hash_sha512(message);
 
       expect(hash).toBeInstanceOf(Uint8Array);
       expect(hash.length).toBe(64);
     });
 
-    it("should produce different hashes for different messages", () => {
+    it("should produce different hashes for different messages", async () => {
       const message1 = new Uint8Array([1, 2, 3]);
       const message2 = new Uint8Array([1, 2, 4]); // One byte different
 
-      const hash1 = crypto_hash_sha512(message1);
-      const hash2 = crypto_hash_sha512(message2);
+      const hash1 = await crypto_hash_sha512(message1);
+      const hash2 = await crypto_hash_sha512(message2);
 
       expect(hash1).not.toEqual(hash2);
       expect(hash1.length).toBe(64);
       expect(hash2.length).toBe(64);
     });
 
-    it("should handle empty messages", () => {
+    it("should handle empty messages", async () => {
       const emptyMessage = new Uint8Array(0);
-      const hash = crypto_hash_sha512(emptyMessage);
+      const hash = await crypto_hash_sha512(emptyMessage);
 
       expect(hash).toBeInstanceOf(Uint8Array);
       expect(hash.length).toBe(64);
     });
 
-    it("should handle single byte messages", () => {
+    it("should handle single byte messages", async () => {
       const singleByte = new Uint8Array([0x42]);
-      const hash = crypto_hash_sha512(singleByte);
+      const hash = await crypto_hash_sha512(singleByte);
 
       expect(hash).toBeInstanceOf(Uint8Array);
       expect(hash.length).toBe(64);
     });
 
-    it("should handle large messages", () => {
+    it("should handle large messages", async () => {
       const largeMessage = new Uint8Array(1000000).fill(0x55); // 1MB message
-      const hash = crypto_hash_sha512(largeMessage);
+      const hash = await crypto_hash_sha512(largeMessage);
 
       expect(hash).toBeInstanceOf(Uint8Array);
       expect(hash.length).toBe(64);
     });
 
-    it("should produce consistent hashes for identical messages", () => {
+    it("should produce consistent hashes for identical messages", async () => {
       const message = new Uint8Array([0x01, 0x02, 0x03, 0x04]);
-      const hash1 = crypto_hash_sha512(message);
-      const hash2 = crypto_hash_sha512(message);
+      const hash1 = await crypto_hash_sha512(message);
+      const hash2 = await crypto_hash_sha512(message);
 
       expect(hash1).toEqual(hash2);
     });
@@ -885,14 +884,14 @@ describe("Sumo Facade Functionality", () => {
       expect(result.length).toBe(32);
     });
 
-    it("should handle X25519 scalar multiplication with all-zero public key", () => {
+    it("should handle X25519 scalar multiplication with all-zero public key", async () => {
       const validPrivate = new Uint8Array(32);
       validPrivate[0] = 1;
       const zeroPublic = new Uint8Array(32); // All zeros (weak public key)
 
       // This should either work or throw an error, but not crash
       try {
-        const result = crypto_scalarmult(validPrivate, zeroPublic);
+        const result = await crypto_scalarmult(validPrivate, zeroPublic);
         expect(result).toBeInstanceOf(Uint8Array);
         expect(result.length).toBe(32);
       } catch (error) {
@@ -900,18 +899,14 @@ describe("Sumo Facade Functionality", () => {
       }
     });
 
-    it("should validate X25519 input lengths strictly", () => {
+    it("should validate X25519 input lengths strictly", async () => {
       const validKey = new Uint8Array(32);
       const shortKey = new Uint8Array(31);
       const longKey = new Uint8Array(33);
 
-      expect(() => {
-        crypto_scalarmult(shortKey, validKey);
-      }).toThrow('x25519 private and public keys must be 32 bytes each');
+      await expect(crypto_scalarmult(shortKey, validKey)).rejects.toThrow('x25519 private and public keys must be 32 bytes each');
 
-      expect(() => {
-        crypto_scalarmult(validKey, longKey);
-      }).toThrow('x25519 private and public keys must be 32 bytes each');
+      await expect(crypto_scalarmult(validKey, longKey)).rejects.toThrow('x25519 private and public keys must be 32 bytes each');
     });
   });
 });
@@ -942,7 +937,7 @@ describe("libsodium-wrappers-sumo parity", () => {
     const signature = sodium.crypto_sign_detached(message, keyPair.privateKey);
 
     // Test both implementations
-    const result1 = crypto_sign_verify_detached(signature, message, keyPair.publicKey);
+    const result1 = await crypto_sign_verify_detached(signature, message, keyPair.publicKey);
     const result2 = sodium.crypto_sign_verify_detached(signature, message, keyPair.publicKey);
 
     expect(result1).toEqual(result2);
@@ -1044,7 +1039,7 @@ describe("libsodium-wrappers-sumo parity", () => {
     privateKey[0] = 42; // Valid X25519 private key
     const publicKey = sodium.crypto_scalarmult_base(privateKey);
 
-    const result1 = crypto_scalarmult(privateKey, publicKey);
+    const result1 = await crypto_scalarmult(privateKey, publicKey);
     const result2 = sodium.crypto_scalarmult(privateKey, publicKey);
 
     expect(result1).toEqual(result2);
@@ -1080,7 +1075,7 @@ describe("libsodium-wrappers-sumo parity", () => {
 
     const message = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-    const result1 = crypto_hash_sha512(message);
+    const result1 = await crypto_hash_sha512(message);
     const result2 = sodium.crypto_hash_sha512(message);
 
     expect(result1).toEqual(result2);
@@ -1095,7 +1090,7 @@ describe("libsodium-wrappers-sumo parity", () => {
 
     // Test without key
     const result1 = crypto_generichash(outputLength, message);
-    const result2 = sodium.crypto_generichash(outputLength, message);
+    const result2 = sodium.crypto_generichash(outputLength, message, null);
 
     expect(result1).toEqual(result2);
 

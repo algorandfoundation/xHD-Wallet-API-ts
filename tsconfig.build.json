@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The published library must not depend on Node globals (Buffer, process...)
+    "types": []
+  },
   "include": ["src/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "node_modules", "dist"]
+  "exclude": ["**/*.spec.ts", "src/test-utils", "node_modules", "dist"]
 }
