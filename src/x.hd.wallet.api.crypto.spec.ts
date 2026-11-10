@@ -1,23 +1,26 @@
-import type { CryptoKX, KeyPair } from "./sumo.facade.js"
-import { crypto_kx_client_session_keys, crypto_kx_server_session_keys, crypto_scalarmult, crypto_scalarmult_ed25519_base_noclamp, crypto_secretbox_easy, crypto_secretbox_open_easy, crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair, to_base64 } from './sumo.facade.js'
+import type { CryptoKX, KeyPair } from "./test-utils/sumo.js"
+import { crypto_scalarmult, crypto_scalarmult_ed25519_base_noclamp, crypto_sign_ed25519_pk_to_curve25519 } from './sumo.facade.js'
+import { crypto_kx_client_session_keys, crypto_kx_server_session_keys, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair } from "./test-utils/sumo.js"
 
 import * as bip39 from "@scure/bip39"
-import { JSONSchemaType } from "ajv"
 import * as msgpack from "algo-msgpack-with-bigint"
 import { randomBytes } from "crypto"
-import { readFileSync } from "fs"
 import base32 from "hi-base32"
 import { sha512_256 } from "js-sha512"
-import path from "node:path"
 import nacl from "tweetnacl"
 import { deriveChildNodePrivate, deriveChildNodePublic, fromSeed } from "./bip32-ed25519.js"
-import { BIP32DerivationType, ERROR_TAGS_FOUND, Encoding, KeyContext, SignMetadata, XHDWalletAPI, computeSharedBlake2bSecret, harden } from "./x.hd.wallet.api.crypto.js"
+import { BIP32DerivationType, KeyContext, TxTagMissingError, XHDWalletAPI, computeSharedBlake2bSecret, harden } from "./x.hd.wallet.api.crypto.js"
 //@ts-expect-error, no types found
 import * as otherLibBip32Ed25519 from 'bip32-ed25519'
-import { fileURLToPath } from 'node:url'
 import { ed25519, x25519 } from "@noble/curves/ed25519.js"
+import { concatBytes } from "@noble/hashes/utils.js"
+import { crypto_secretbox_easy, crypto_secretbox_open_easy } from "./test-utils/secretbox.js"
+import { readFileSync } from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 function encodeAddress(publicKey: Buffer): string {
     const keyHash: string = sha512_256.create().update(publicKey).hex()
 
@@ -39,6 +42,7 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 
     return c
 }
+
 
 describe("Contextual Derivation & Signing", () => {
 
@@ -211,176 +215,69 @@ describe("Contextual Derivation & Signing", () => {
                 })
             })
 
-        describe("Signing Typed Data", () => {
-            it("\(OK) Sign authentication challenge of 32 bytes, encoded base64", async () => {
+        describe("Signing Data", () => {
+            it("\(OK) Sign authentication challenge of 32 bytes", async () => {
                 const challenge: Uint8Array = new Uint8Array(randomBytes(32))
 
-                // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
-                const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: authSchema }
-                const base64Challenge: string = Buffer.from(challenge).toString("base64")
-
-                const encoded: Uint8Array = new Uint8Array(Buffer.from(base64Challenge))
-
-                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
-                expect(signature).toHaveLength(64)
-
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
-                expect(isValid).toBe(true)
-            })
-
-            it("\(OK) Sign authentication challenge of 32 bytes, encoded msgpack", async () => {
-                const challenge: Uint8Array = new Uint8Array(randomBytes(32))
-
-                // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
-                const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: authSchema }
-                const encoded: Uint8Array = msgpack.encode(challenge)
-
-                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
-                expect(signature).toHaveLength(64)
-
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
-                expect(isValid).toBe(true)
-            })
-
-            it ("\(OK) Sign authentication challenge of 32 bytes, no encoding", async () => {
-                const challenge: Uint8Array = new Uint8Array(randomBytes(32))
-
-                // read auth schema file for authentication. 32 bytes challenge to sign
-                const authSchema: JSONSchemaType<any> = JSON.parse(readFileSync(path.resolve(__dirname, "../schemas/auth.request.json"), "utf8"))
-                const metadata: SignMetadata = { encoding: Encoding.NONE, schema: authSchema }
-
-                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, challenge,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address, 0, 0, challenge)
                 expect(signature).toHaveLength(64)
 
                 const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, challenge, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))
                 expect(isValid).toBe(true)
             })
 
-            it("\(OK) Sign Arbitrary Message against Schema, encoded base64", async () => {
-                const firstKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
+            it("\(OK) Sign arbitrary message", async () => {
+                const message: Uint8Array = new TextEncoder().encode("Hello World")
 
-                const message = {
-                    letter: "Hello World"
-                }
-
-                const encoded: Buffer = Buffer.from(to_base64(JSON.stringify(message)))
-
-                // Schema of what we are signing
-                const jsonSchema = {
-                    type: "object",
-                    properties: {
-                        letter: {
-                            type: "string"
-                        }
-                    }
-                }
-
-                const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: jsonSchema }
-
-                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Identity, 0, 0, message)
                 expect(signature).toHaveLength(64)
 
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, firstKey)
+                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, message, await cryptoService.keyGen(rootKey, KeyContext.Identity, 0, 0))
                 expect(isValid).toBe(true)
             })
 
-            it("\(OK) Sign Arbitrary Message against Schema, encoded msgpack", async () => {
-                const firstKey: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0)
-
-                const message = {
-                    letter: "Hello World"
-                }
-
-                const encoded: Buffer = Buffer.from(msgpack.encode(message))
-
-                // Schema of what we are signing
-                const jsonSchema = {
-                    type: "object",
-                    properties: {
-                        letter: {
-                            type: "string"
-                        }
-                    }
-                }
-
-                const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: jsonSchema }
-
-                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address,0, 0, encoded,  metadata)
-                expect(signature).toHaveLength(64)
-
-                const isValid: boolean = await cryptoService.verifyWithPublicKey(signature, encoded, firstKey)
-                expect(isValid).toBe(true)
+            it("\(FAIL) Derivation rejects an index outside uint32", async () => {
+                const xpub: Uint8Array = await cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0], false, BIP32DerivationType.Peikert)
+                await expect(deriveChildNodePublic(xpub, -1)).rejects.toHaveProperty("name", "RangeError")
+                await expect(deriveChildNodePrivate(rootKey, 2 ** 32)).rejects.toHaveProperty("name", "RangeError")
             })
 
-            it("\(FAIL) Signing attempt fails because of invalid data against Schema, encoded base64", async () => {
-                const message = {
-                    letter: "Hello World"
-                }
-
-                const encoded: Buffer = Buffer.from(to_base64(JSON.stringify(message)))
-
-                // Schema of what we are signing
-                const jsonSchema = {
-                    type: "string"
-                }
-
-                const metadata: SignMetadata = { encoding: Encoding.BASE64, schema: jsonSchema }
-                expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
+            it("\(FAIL) Public derivation rejects hardened indexes, including harden(0)", async () => {
+                const xpub: Uint8Array = await cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0], false, BIP32DerivationType.Peikert)
+                await expect(deriveChildNodePublic(xpub, harden(0))).rejects.toThrow("can not derive public key with harden")
+                await expect(deriveChildNodePublic(xpub, harden(1))).rejects.toThrow("can not derive public key with harden")
+                await expect(deriveChildNodePublic(xpub, harden(0) - 1)).resolves.toHaveLength(64)
             })
 
-            it("\(FAIL) Signing attempt fails because of invalid data against Schema, encoded msgpack", async () => {
-                const message = {
-                    letter: "Hello World"
-                }
-
-                const encoded: Buffer = Buffer.from(msgpack.encode(message))
-
-                // Schema of what we are signing
-                const jsonSchema = {
-                    type: "string"
-                }
-
-                const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: jsonSchema }
-                expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, encoded,  metadata)).rejects.toThrowError()
-            })
-
-            describe("Reject Regular Transaction Signing. IF TAG Prexies are present signing must fail", () => {
-                it("\(FAIL) [TX] Tag", async () => {
-                    const transaction: Buffer = Buffer.concat([Buffer.from("TX"), msgpack.encode(randomBytes(64))])
-                    const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
-                })
-
-                it("\(FAIL) [MX] Tag", async () => {
-                    const transaction: Buffer = Buffer.concat([Buffer.from("MX"), msgpack.encode(randomBytes(64))])
-                    const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
-                })
-
-                it("\(FAIL) [Program] Tag", async () => {
-                    const transaction: Buffer = Buffer.concat([Buffer.from("Program"), msgpack.encode(randomBytes(64))])
-                    const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
-                })
-
-                it("\(FAIL) [progData] Tag", async () => {
-                    const transaction: Buffer = Buffer.concat([Buffer.from("ProgData"), msgpack.encode(randomBytes(64))])
-                    const metadata: SignMetadata = { encoding: Encoding.MSGPACK, schema: {} }
-                    expect(cryptoService.signData(rootKey, KeyContext.Identity,0, 0, transaction,  metadata)).rejects.toThrowError(ERROR_TAGS_FOUND)
-                })
+            it("\(OK) signData signs data exactly as given, including protocol-tagged data", async () => {
+                const transaction: Buffer = Buffer.concat([Buffer.from("TX"), msgpack.encode(randomBytes(64))])
+                const signature: Uint8Array = await cryptoService.signData(rootKey, KeyContext.Address, 0, 0, transaction)
+                expect(await cryptoService.verifyWithPublicKey(signature, transaction, await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0))).toBe(true)
             })
         })
 
         describe("signing transactions", () => {
+            // this transaction wes successfully submitted to the network https://testnet.explorer.perawallet.app/tx/UJG3NVCSCW5A63KPV35BPAABLXMXTTEM2CVUKNS4EML3H3EYGMCQ/
+            const prefixEncodedTx = new Uint8Array(Buffer.from('VFiJo2FtdM0D6KNmZWXNA+iiZnbOAkeSd6NnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds4CR5Zfo3JjdsQgYv6DK3rRBUS+gzemcENeUGSuSmbne9eJCXZbRrV2pvOjc25kxCBi/oMretEFRL6DN6ZwQ15QZK5KZud714kJdltGtXam86R0eXBlo3BheQ==', 'base64'))
+
             it("\(OK) Sign Transaction", async () => {
                 const key: Uint8Array = await cryptoService.keyGen(rootKey, KeyContext.Address, 0, 0, BIP32DerivationType.Khovratovich)
-                // this transaction wes successfully submitted to the network https://testnet.explorer.perawallet.app/tx/UJG3NVCSCW5A63KPV35BPAABLXMXTTEM2CVUKNS4EML3H3EYGMCQ/
-                const prefixEncodedTx = new Uint8Array(Buffer.from('VFiJo2FtdM0D6KNmZWXNA+iiZnbOAkeSd6NnZW6sdGVzdG5ldC12MS4womdoxCBIY7UYpLPITsgQ8i1PEIHLD3HwWaesIN7GL39w5Qk6IqJsds4CR5Zfo3JjdsQgYv6DK3rRBUS+gzemcENeUGSuSmbne9eJCXZbRrV2pvOjc25kxCBi/oMretEFRL6DN6ZwQ15QZK5KZud714kJdltGtXam86R0eXBlo3BheQ==', 'base64'))
                 const sig = await cryptoService.signAlgoTransaction(rootKey, KeyContext.Address, 0, 0, prefixEncodedTx, BIP32DerivationType.Khovratovich)
                 expect(encodeAddress(Buffer.from(key))).toEqual("ML7IGK322ECUJPUDG6THAQ26KBSK4STG4555PCIJOZNUNNLWU3Z3ZFXITA")
                 expect(nacl.sign.detached.verify(prefixEncodedTx, sig, key)).toBe(true)
+            })
+
+            it("\(FAIL) Signing a transaction without the TX prefix is rejected", async () => {
+                const cases: Uint8Array[] = [
+                    prefixEncodedTx.subarray(2),                                       // same transaction, prefix stripped
+                    concatBytes(new TextEncoder().encode("MX"), prefixEncodedTx.subarray(2)), // a different protocol tag
+                    new TextEncoder().encode("tx"),                                     // wrong case
+                    new TextEncoder().encode("T"),                                      // shorter than the tag
+                    new Uint8Array(0),                                                  // empty
+                ]
+                for (const data of cases) {
+                    await expect(cryptoService.signAlgoTransaction(rootKey, KeyContext.Address, 0, 0, data, BIP32DerivationType.Khovratovich)).rejects.toThrow(TxTagMissingError)
+                }
             })
         })
 
@@ -501,7 +398,7 @@ describe("Contextual Derivation & Signing", () => {
 
             // for the seed in this test, we know where the scalar breaks (>= 2 ^ 255)
             // expect error at the 20th level for this known seed
-            expect(deriveChildNodePrivate(derivationNode, 0, g)).rejects.toThrow("zL * 8 is larger than 2^255, which is not safe")
+            await expect(deriveChildNodePrivate(derivationNode, 0, g)).rejects.toThrow("zL * 8 is larger than 2^255, which is not safe")
         })
     })
 
@@ -549,4 +446,42 @@ describe("Contextual Derivation & Signing", () => {
             }
         })
     })
+})
+
+// The README publishes test vectors for other implementations to check against, so they must
+// match this library exactly. (Tests run from dist/, so the README is one level up.)
+describe("README test vectors", () => {
+    const readme: string = readFileSync(path.resolve(__dirname, "../README.md"), "utf8")
+    const mnemonic: string = readme.match(/`BIP39 mnemonic`: _([a-z ]+)_/)![1]
+    const cryptoService = new XHDWalletAPI()
+    let rootKey: Uint8Array
+
+    beforeAll(() => {
+        rootKey = fromSeed(Buffer.from(bip39.mnemonicToSeedSync(mnemonic, "")))
+    })
+
+    const toPath = (p: string): number[] =>
+        p.split("/").slice(1).map((level) => level.endsWith("'") ? harden(Number(level.slice(0, -1))) : Number(level))
+
+    it("\(OK) Root key", () => {
+        expect(Buffer.from(rootKey).toString("hex")).toBe(readme.match(/`root key \(hex\)`: ([0-9a-f]+)/)![1])
+    })
+
+    for (const [mode, derivationType] of [["Peikert", BIP32DerivationType.Peikert], ["Khovratovich", BIP32DerivationType.Khovratovich]] as const) {
+        const section: string = readme.split(new RegExp(`^### ${mode}.*$`, "m"))[1]?.split(/^#/m)[0] ?? ""
+        const vectors = [...section.matchAll(/`(m'[0-9'/]+)`\s*\n\s*- private: ([0-9a-f]{192})\s*\n\s*- public: ([0-9a-f]{64})/g)]
+
+        it(`\(OK) ${mode} section lists vectors`, () => {
+            expect(vectors.length).toBeGreaterThan(0)
+        })
+
+        for (const [, bip44Path, priv, pub] of vectors) {
+            it(`\(OK) ${mode} ${bip44Path}`, async () => {
+                const derivedPrivate: Uint8Array = await cryptoService.deriveKey(rootKey, toPath(bip44Path), true, derivationType)
+                const derivedPublic: Uint8Array = await cryptoService.deriveKey(rootKey, toPath(bip44Path), false, derivationType)
+                expect(Buffer.from(derivedPrivate).toString("hex")).toBe(priv)
+                expect(Buffer.from(derivedPublic.subarray(0, 32)).toString("hex")).toBe(pub)
+            })
+        }
+    }
 })

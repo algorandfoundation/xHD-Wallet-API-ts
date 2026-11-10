@@ -167,7 +167,7 @@ export async function deriveChildNodePrivate(
  * @returns - 64 bytes, being the 32 bytes of the child key (the new public key) followed by the 32 bytes of the chain code
  */
 export async function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Promise<Uint8Array> {
-  if (index > 0x80000000) throw Error('can not derive public key with harden')
+  if (index >= 0x80000000) throw Error('can not derive public key with harden')
 
   const pk: Buffer = Buffer.from(extendedKey.subarray(0, 32))
   const cc: Buffer = Buffer.from(extendedKey.subarray(32, 64))

@@ -5,18 +5,19 @@ import {
     crypto_core_ed25519_scalar_reduce,
     crypto_generichash,
     crypto_hash_sha512,
-    crypto_kx_client_session_keys,
-    crypto_kx_server_session_keys,
     crypto_scalarmult,
     crypto_scalarmult_ed25519_base_noclamp,
-    crypto_secretbox_easy,
-    crypto_secretbox_open_easy,
     crypto_sign_ed25519_pk_to_curve25519,
+    crypto_sign_verify_detached,
+} from "./sumo.facade.js";
+import { crypto_secretbox_easy, crypto_secretbox_open_easy } from "./test-utils/secretbox.js";
+import {
+    crypto_kx_client_session_keys,
+    crypto_kx_server_session_keys,
     crypto_sign_ed25519_sk_to_curve25519,
     crypto_sign_keypair,
-    crypto_sign_verify_detached,
     to_base64,
-} from "./sumo.facade.js";
+} from "./test-utils/sumo.js";
 
 import _sodium from "libsodium-wrappers-sumo";
 
@@ -1095,7 +1096,7 @@ describe("libsodium-wrappers-sumo parity", () => {
 
     // Test without key
     const result1 = crypto_generichash(outputLength, message);
-    const result2 = sodium.crypto_generichash(outputLength, message);
+    const result2 = sodium.crypto_generichash(outputLength, message, null);
 
     expect(result1).toEqual(result2);
 
