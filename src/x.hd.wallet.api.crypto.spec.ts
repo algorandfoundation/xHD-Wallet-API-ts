@@ -246,6 +246,22 @@ describe("Contextual Derivation & Signing", () => {
                 await expect(deriveChildNodePrivate(rootKey, 2 ** 32)).rejects.toThrow(indexError)
             })
 
+            it("\(FAIL) keyGen and signData reject a keyIndex outside the soft range", async () => {
+                const keyIndexError: RegExp = /keyIndex must be an integer in \[0, 2147483648\)/
+                await expect(cryptoService.keyGen(rootKey, KeyContext.Address, 0, harden(0))).rejects.toThrow(keyIndexError)
+                await expect(cryptoService.keyGen(rootKey, KeyContext.Address, 0, -1)).rejects.toThrow(keyIndexError)
+                await expect(cryptoService.signData(rootKey, KeyContext.Address, 0, 1.5, new Uint8Array(1))).rejects.toThrow(keyIndexError)
+            })
+
+            it("\(FAIL) Unknown derivation types are rejected instead of silently using Khovratovich", async () => {
+                const derivationTypeError: RegExp = /derivationType must be BIP32DerivationType\.Peikert/
+                await expect(cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0, 0], true, 123 as BIP32DerivationType)).rejects.toThrow(derivationTypeError)
+
+                // A leftover 1.x `metadata` argument now binds to derivationType; it must not be accepted
+                const metadata = { encoding: "none", schema: {} } as unknown as BIP32DerivationType
+                await expect(cryptoService.signData(rootKey, KeyContext.Address, 0, 0, new Uint8Array(1), metadata)).rejects.toThrow(derivationTypeError)
+            })
+
             it("\(FAIL) harden rejects levels outside [0, 2^31)", () => {
                 expect(() => harden(-1)).toThrow(RangeError)
                 expect(() => harden(2 ** 31)).toThrow(RangeError)

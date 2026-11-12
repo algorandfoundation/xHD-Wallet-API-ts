@@ -5,11 +5,7 @@ import {
   crypto_scalarmult_ed25519_base_noclamp,
 } from "./sumo.facade.js";
 import BN from 'bn.js'
-
-/** Index of the first hardened child; also the exclusive upper bound of a valid index */
-const FIRST_HARDENED_INDEX = 0x80_00_00_00
-/** Exclusive upper bound of a valid (uint32) index */
-const MAX_INDEX_EXCLUSIVE = 0x1_00_00_00_00
+import { FIRST_HARDENED_INDEX, MAX_INDEX_EXCLUSIVE } from "./constants.js";
 
 /**
  * Rejects indexes that can't be encoded as a uint32, so callers get a clear error

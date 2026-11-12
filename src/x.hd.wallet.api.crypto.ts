@@ -10,6 +10,7 @@ import {
     crypto_generichash,
 } from './sumo.facade.js';
 import { deriveChildNodePrivate } from './bip32-ed25519.js';
+import { FIRST_HARDENED_INDEX } from './constants.js';
 
 /**
  *
@@ -47,19 +48,35 @@ export interface ChannelKeys {
     rx: Uint8Array
 }
 
-/** Index of the first hardened child key; also the exclusive upper bound of a non-hardened index */
-const FIRST_HARDENED_INDEX = 0x80_00_00_00
+/**
+ * Rejects values that can't be used as a non-hardened BIP44 level.
+ * @throws RangeError if level is not an integer in [0, 2^31)
+ */
+function assertBip44Level(level: number, name: string): void {
+    if (!Number.isInteger(level) || level < 0 || level >= FIRST_HARDENED_INDEX) {
+        throw new RangeError(`${name} must be an integer in [0, ${FIRST_HARDENED_INDEX}), got ${level}`)
+    }
+}
 
 /**
  * Turns a BIP44 path level into its hardened form (2^31 + num).
  * @throws RangeError if num is not an integer in [0, 2^31)
  */
 export const harden = (num: number): number => {
-    if (!Number.isInteger(num) || num < 0 || num >= FIRST_HARDENED_INDEX) {
-        throw new RangeError(`harden() expects an integer in [0, ${FIRST_HARDENED_INDEX}), got ${num}`)
-    }
+    assertBip44Level(num, "harden() level")
     return FIRST_HARDENED_INDEX + num
 };
+
+/**
+ * Rejects unknown derivation types, so a wrong value (e.g. a leftover `metadata` argument
+ * from 1.x passed to signData) can't silently fall back to Khovratovich derivation.
+ * @throws RangeError if derivationType is not a BIP32DerivationType member
+ */
+function assertValidDerivationType(derivationType: BIP32DerivationType): void {
+    if (derivationType !== BIP32DerivationType.Peikert && derivationType !== BIP32DerivationType.Khovratovich) {
+        throw new RangeError(`derivationType must be BIP32DerivationType.Peikert (${BIP32DerivationType.Peikert}) or BIP32DerivationType.Khovratovich (${BIP32DerivationType.Khovratovich}), got ${String(derivationType)}`)
+    }
+}
 
 const TX_TAG: Uint8Array = new TextEncoder().encode("TX")
 
@@ -68,6 +85,9 @@ function startsWith(message: Uint8Array, prefix: Uint8Array): boolean {
 }
 
 function GetBIP44PathFromContext(context: KeyContext, account:number, key_index: number): number[] {
+    // keyIndex is a soft derivation level, so it must fit below the hardened range
+    assertBip44Level(key_index, "keyIndex")
+
     switch (context) {
         case KeyContext.Address:
             return [harden(44), harden(283), harden(account), 0, key_index]
@@ -102,6 +122,8 @@ export class XHDWalletAPI {
      * @returns - The extended private key (kL, kR, chainCode) or the extended public key (pub, chainCode)
      */
     async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true, derivationType: BIP32DerivationType): Promise<Uint8Array> {
+        assertValidDerivationType(derivationType)
+
         // Pick `g`, which is amount of bits zeroed from each derived node
         const g: number = derivationType === BIP32DerivationType.Peikert ? 9 : 32
 
