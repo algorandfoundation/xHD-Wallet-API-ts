@@ -9,6 +9,7 @@ import {
     crypto_scalarmult,
     crypto_generichash,
 } from './sumo.facade.js';
+import { concatBytes } from "@noble/hashes/utils.js";
 import { deriveChildNodePrivate } from './bip32-ed25519.js';
 import { FIRST_HARDENED_INDEX } from './constants.js';
 
@@ -25,12 +26,12 @@ export function computeSharedBlake2bSecret(meFirst: boolean): ECDHCallback {
     return async (sharedPoint: Uint8Array, ourPubCurve25519: Uint8Array, otherPartyPubCurve25519: Uint8Array): Promise<Uint8Array> => {
         let concatenation: Uint8Array
         if (meFirst) {
-            concatenation = Buffer.concat([sharedPoint, ourPubCurve25519, otherPartyPubCurve25519])
+            concatenation = concatBytes(sharedPoint, ourPubCurve25519, otherPartyPubCurve25519)
         } else {
-            concatenation = Buffer.concat([sharedPoint, otherPartyPubCurve25519, ourPubCurve25519])
+            concatenation = concatBytes(sharedPoint, otherPartyPubCurve25519, ourPubCurve25519)
         }
 
-        return crypto_generichash(32, new Uint8Array(concatenation))
+        return crypto_generichash(32, concatenation)
     }
 }
 
@@ -139,7 +140,7 @@ export class XHDWalletAPI {
 
         // extended public key
         // [public] [nodeCC]
-        return new Uint8Array(Buffer.concat([crypto_scalarmult_ed25519_base_noclamp(rootKey.subarray(0, 32)), rootKey.subarray(64, 96)]))
+        return concatBytes(crypto_scalarmult_ed25519_base_noclamp(rootKey.subarray(0, 32)), rootKey.subarray(64, 96))
     }
 
     /**
@@ -182,18 +183,18 @@ export class XHDWalletAPI {
         const publicKey = crypto_scalarmult_ed25519_base_noclamp(scalar);
 
         // \(2): h = hash(c || msg) mod q
-        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([kR, data])))
+        const r = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(concatBytes(kR, data)))
 
         // \(4):  R = r * G (base point, no clamp)
         const R = crypto_scalarmult_ed25519_base_noclamp(r)
 
         // h = hash(R || pubKey || msg) mod q
-        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(Buffer.concat([R, publicKey, data])));
+        let h = crypto_core_ed25519_scalar_reduce(crypto_hash_sha512(concatBytes(R, publicKey, data)));
 
         // \(5): S = (r + h * k) mod q
         const S = crypto_core_ed25519_scalar_add(r, crypto_core_ed25519_scalar_mul(h, scalar))
 
-        return Buffer.concat([R, S]);
+        return concatBytes(R, S);
     }
 
     /**
