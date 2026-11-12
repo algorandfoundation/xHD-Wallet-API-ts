@@ -253,9 +253,20 @@ describe("Contextual Derivation & Signing", () => {
                 await expect(cryptoService.signData(rootKey, KeyContext.Address, 0, 1.5, new Uint8Array(1))).rejects.toThrow(keyIndexError)
             })
 
+            it("\(FAIL) Context-based methods reject an account outside [0, 2^31), naming it in the error", async () => {
+                const accountError: RegExp = /account must be an integer in \[0, 2147483648\)/
+                await expect(cryptoService.keyGen(rootKey, KeyContext.Address, -1, 0)).rejects.toThrow(accountError)
+                await expect(cryptoService.keyGen(rootKey, KeyContext.Identity, 2 ** 31, 0)).rejects.toThrow(accountError)
+                await expect(cryptoService.signData(rootKey, KeyContext.Address, 1.5, 0, new Uint8Array(1))).rejects.toThrow(accountError)
+            })
+
             it("\(FAIL) Unknown derivation types are rejected instead of silently using Khovratovich", async () => {
                 const derivationTypeError: RegExp = /derivationType must be BIP32DerivationType\.Peikert/
                 await expect(cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0, 0], true, 123 as BIP32DerivationType)).rejects.toThrow(derivationTypeError)
+
+                // deriveKey has no default, so a plain-JS caller omitting it must not get Khovratovich (as in 1.x)
+                const missing = undefined as unknown as BIP32DerivationType
+                await expect(cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0, 0], true, missing)).rejects.toThrow(derivationTypeError)
 
                 // A leftover 1.x `metadata` argument now binds to derivationType; it must not be accepted
                 const metadata = { encoding: "none", schema: {} } as unknown as BIP32DerivationType

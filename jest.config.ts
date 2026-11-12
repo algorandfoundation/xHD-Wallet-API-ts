@@ -2,13 +2,9 @@ import type { JestConfigWithTsJest } from 'ts-jest';
 
 const jestConfig: JestConfigWithTsJest = {
     preset: 'ts-jest/presets/default-esm',
+    // `pnpm test` compiles the specs to dist/ with tsconfig.spec.json first, and jest runs the
+    // compiled .js files; the .ts sources are ignored, so ts-jest never transforms a test file.
     testPathIgnorePatterns: ["src"],
-    // Tests are compiled to dist/ first; this is the config `pnpm test` compiles them with,
-    // which is also the one that includes the jest types (`tsconfig.json` is build-only).
-    transform: {
-        // Same as the preset's transform (`defaultsESM`), with the spec tsconfig made explicit
-        '^.+\\.m?tsx?$': ['ts-jest', { useESM: true, tsconfig: '<rootDir>/tsconfig.spec.json' }],
-    },
 };
 
 export default jestConfig;

@@ -85,7 +85,9 @@ function startsWith(message: Uint8Array, prefix: Uint8Array): boolean {
 }
 
 function GetBIP44PathFromContext(context: KeyContext, account:number, key_index: number): number[] {
-    // keyIndex is a soft derivation level, so it must fit below the hardened range
+    // account is hardened below and keyIndex is a soft level, so both must fit below the hardened range.
+    // Checking account here names it in the error, instead of harden()'s generic "level".
+    assertBip44Level(account, "account")
     assertBip44Level(key_index, "keyIndex")
 
     switch (context) {
@@ -119,7 +121,9 @@ export class XHDWalletAPI {
      * @param rootKey - root key in extended format (kL, kR, c). It should be 96 bytes long
      * @param bip44Path - BIP44 path (m / purpose' / coin_type' / account' / change / address_index). The ' indicates that the value is hardened
      * @param isPrivate  - if true, return the private key, otherwise return the public key
+     * @param derivationType - required; unlike the context-based methods there is no default
      * @returns - The extended private key (kL, kR, chainCode) or the extended public key (pub, chainCode)
+     * @throws RangeError if derivationType is missing or not a BIP32DerivationType member
      */
     async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true, derivationType: BIP32DerivationType): Promise<Uint8Array> {
         assertValidDerivationType(derivationType)
