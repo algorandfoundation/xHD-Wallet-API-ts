@@ -9,10 +9,8 @@ import {
     crypto_scalarmult,
     crypto_generichash,
 } from './sumo.facade.js';
-import * as msgpack from "algo-msgpack-with-bigint"
-import Ajv from "ajv"
-//@ts-expect-error, we handle this with ts-alias
-import { deriveChildNodePrivate } from './bip32-ed25519';
+import { deriveChildNodePrivate } from './bip32-ed25519.js';
+import { FIRST_HARDENED_INDEX } from './constants.js';
 
 /**
  *
@@ -50,20 +48,48 @@ export interface ChannelKeys {
     rx: Uint8Array
 }
 
-export enum Encoding {
-    MSGPACK = "msgpack",
-    BASE64 = "base64",
-    NONE = "none"
+/**
+ * Rejects values that can't be used as a non-hardened BIP44 level.
+ * @throws RangeError if level is not an integer in [0, 2^31)
+ */
+function assertBip44Level(level: number, name: string): void {
+    if (!Number.isInteger(level) || level < 0 || level >= FIRST_HARDENED_INDEX) {
+        throw new RangeError(`${name} must be an integer in [0, ${FIRST_HARDENED_INDEX}), got ${level}`)
+    }
 }
 
-export interface SignMetadata {
-    encoding: Encoding
-    schema: Object
+/**
+ * Turns a BIP44 path level into its hardened form (2^31 + num).
+ * @throws RangeError if num is not an integer in [0, 2^31)
+ */
+export const harden = (num: number): number => {
+    assertBip44Level(num, "harden() level")
+    return FIRST_HARDENED_INDEX + num
+};
+
+/**
+ * Rejects unknown derivation types, so a wrong value (e.g. a leftover `metadata` argument
+ * from 1.x passed to signData) can't silently fall back to Khovratovich derivation.
+ * @throws RangeError if derivationType is not a BIP32DerivationType member
+ */
+function assertValidDerivationType(derivationType: BIP32DerivationType): void {
+    if (derivationType !== BIP32DerivationType.Peikert && derivationType !== BIP32DerivationType.Khovratovich) {
+        throw new RangeError(`derivationType must be BIP32DerivationType.Peikert (${BIP32DerivationType.Peikert}) or BIP32DerivationType.Khovratovich (${BIP32DerivationType.Khovratovich}), got ${String(derivationType)}`)
+    }
 }
 
-export const harden = (num: number): number => 0x80_00_00_00 + num;
+const TX_TAG: Uint8Array = new TextEncoder().encode("TX")
+
+function startsWith(message: Uint8Array, prefix: Uint8Array): boolean {
+    return message.length >= prefix.length && prefix.every((byte, i) => message[i] === byte)
+}
 
 function GetBIP44PathFromContext(context: KeyContext, account:number, key_index: number): number[] {
+    // account is hardened below and keyIndex is a soft level, so both must fit below the hardened range.
+    // Checking account here names it in the error, instead of harden()'s generic "level".
+    assertBip44Level(account, "account")
+    assertBip44Level(key_index, "keyIndex")
+
     switch (context) {
         case KeyContext.Address:
             return [harden(44), harden(283), harden(account), 0, key_index]
@@ -74,8 +100,16 @@ function GetBIP44PathFromContext(context: KeyContext, account:number, key_index:
     }
 }
 
-export const ERROR_BAD_DATA: Error = Error("Invalid Data")
-export const ERROR_TAGS_FOUND: Error = Error("Transactions tags found")
+/**
+ * Thrown by signAlgoTransaction when its input does not start with "TX". Usually the encoded
+ * transaction was passed instead of its bytes to sign ("TX" || encoded transaction).
+ */
+export class TxTagMissingError extends Error {
+    constructor() {
+        super('Transaction is not prefixed with the "TX" tag: pass the bytes to sign (e.g. algosdk\'s txn.bytesToSign()), not the encoded transaction')
+        this.name = "TxTagMissingError"
+    }
+}
 
 export class XHDWalletAPI {
 
@@ -87,9 +121,13 @@ export class XHDWalletAPI {
      * @param rootKey - root key in extended format (kL, kR, c). It should be 96 bytes long
      * @param bip44Path - BIP44 path (m / purpose' / coin_type' / account' / change / address_index). The ' indicates that the value is hardened
      * @param isPrivate  - if true, return the private key, otherwise return the public key
+     * @param derivationType - required; unlike the context-based methods there is no default
      * @returns - The extended private key (kL, kR, chainCode) or the extended public key (pub, chainCode)
+     * @throws RangeError if derivationType is missing or not a BIP32DerivationType member
      */
     async deriveKey(rootKey: Uint8Array, bip44Path: number[], isPrivate: boolean = true, derivationType: BIP32DerivationType): Promise<Uint8Array> {
+        assertValidDerivationType(derivationType)
+
         // Pick `g`, which is amount of bits zeroed from each derived node
         const g: number = derivationType === BIP32DerivationType.Peikert ? 9 : 32
 
@@ -166,25 +204,16 @@ export class XHDWalletAPI {
      * @param context - context of the key (i.e Address, Identity)
      * @param account - account number. This value will be hardened as part of BIP44
      * @param keyIndex - key index. This value will be a SOFT derivation as part of BIP44.
-     * @param data - data to be signed in raw bytes
-     * @param metadata - metadata object that describes how `data` was encoded and what schema to use to validate against
+     * @param data - data to be signed in raw bytes, signed exactly as given. If passed a transaction
+     * or other Algorand protocol message, it signs that too. Callers signing data from an untrusted
+     * source must domain-separate it so it can't form such a message, for example by signing a hash
+     * of it, as ARC-60 does. Use signAlgoTransaction to sign transactions.
      * @param derivationType
      * - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's ammendment to BIP32-Ed25519
      *
      * @returns - signature holding R and S, totally 64 bytes
      * */
-    async signData(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, data: Uint8Array, metadata: SignMetadata, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
-        // validate data
-        const result: boolean | Error = this.validateData(data, metadata)
-
-        if (result instanceof Error) { // decoding errors
-            throw result
-        }
-
-        if (!result) { // failed schema validation
-            throw ERROR_BAD_DATA
-        }
-
+    async signData(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, data: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
         return await this.rawSign(rootKey, bip44Path, data, derivationType)
     }
@@ -198,7 +227,8 @@ export class XHDWalletAPI {
      * @param keyIndex
      * - key index. This value will be a SOFT derivation as part of BIP44.
      * @param prefixEncodedTx
-     * - Encoded transaction object
+     * - Bytes to sign: the encoded transaction prefixed with the "TX" tag (algosdk's txn.bytesToSign()).
+     * Rejected with TxTagMissingError otherwise, to catch an encoded transaction passed without its prefix
      * @param derivationType
      * - BIP32 derivation type, defines if it's standard Ed25519 or Peikert's ammendment to BIP32-Ed25519
      *
@@ -206,6 +236,10 @@ export class XHDWalletAPI {
      * - Raw bytes signature
      */
     async signAlgoTransaction(rootKey: Uint8Array, context: KeyContext, account: number, keyIndex: number, prefixEncodedTx: Uint8Array, derivationType: BIP32DerivationType = BIP32DerivationType.Peikert): Promise<Uint8Array> {
+        if (!startsWith(prefixEncodedTx, TX_TAG)) {
+            throw new TxTagMissingError()
+        }
+
         const bip44Path: number[] = GetBIP44PathFromContext(context, account, keyIndex)
 
         const sig =  await this.rawSign(rootKey, bip44Path, prefixEncodedTx, derivationType)
@@ -213,74 +247,6 @@ export class XHDWalletAPI {
         return sig
     }
 
-
-    /**
-     * SAMPLE IMPLEMENTATION to show how to validate data with encoding and schema, using base64 as an example
-     *
-     * @param message
-     * @param metadata
-     * @returns
-     */
-    private validateData(message: Uint8Array, metadata: SignMetadata): boolean | Error {
-
-        // Check that decoded doesn't include the following prefixes: TX, MX, progData, Program
-        // These prefixes are reserved for the protocol
-        if (this.hasAlgorandTags(message)) {
-            return ERROR_TAGS_FOUND
-        }
-
-        let decoded: Uint8Array
-        switch (metadata.encoding) {
-            case Encoding.BASE64:
-                decoded = new Uint8Array(Buffer.from(Buffer.from(message).toString(), 'base64'))
-                break
-            case Encoding.MSGPACK:
-                decoded = msgpack.decode<Uint8Array>(message) as Uint8Array
-                break
-
-            case Encoding.NONE:
-                decoded = message
-                break
-            default:
-                throw Error("Invalid encoding")
-        }
-
-        // validate with schema
-        //@ts-expect-error, this is constructable
-        const ajv = new Ajv()
-		const validate = ajv.compile(metadata.schema)
-
-        const valid = validate(decoded)
-
-        if (!valid) console.log(ajv.errors)
-
-        return valid
-    }
-
-    /**
-     * Detect if the message has Algorand protocol specific tags
-     *
-     * @param message - raw bytes of the message
-     * @returns - true if message has Algorand protocol specific tags, false otherwise
-     */
-    private hasAlgorandTags(message: Uint8Array): boolean {
-
-        // Check that decoded doesn't include the following prefixes
-        // Prefixes taken from go-algorand node software code
-        // https://github.com/algorand/go-algorand/blob/master/protocol/hash.go
-        const prefixes: string[] = [
-            "appID","arc","aB","aD","aO","aP","aS","AS","B256","BH","BR","CR","GE","KP","MA","MB",
-            "MX","NIC","NIR","NIV","NPR","OT1","OT2","PF","PL","Program","ProgData","PS","PK","SD",
-            "SpecialAddr","STIB","spc","spm","spp","sps","spv","TE","TG","TL","TX","VO"
-        ]
-        for (const prefix of prefixes) {
-            if (Buffer.from(message.subarray(0, prefix.length)).toString("ascii") === prefix) {
-                return true
-            }
-        }
-
-        return false
-    }
 
 
     /**
