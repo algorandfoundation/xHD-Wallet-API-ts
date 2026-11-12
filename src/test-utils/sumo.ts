@@ -54,7 +54,11 @@ export function crypto_sign_ed25519_sk_to_curve25519(
   return ed25519.utils.toMontgomerySecret(seed);
 }
 
-/** Synchronous X25519 with libsodium's clamping, as used by crypto_kx_* below */
+/**
+ * Synchronous X25519 with libsodium's clamping, as used by crypto_kx_* below.
+ * Noble clamps too, so the explicit clamp is redundant crypto-wise; it is kept so this helper
+ * mirrors libsodium's `crypto_scalarmult` (including its input length checks) one-to-one.
+ */
 function scalarmult(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array {
   if (privateKey.length !== 32 || publicKey.length !== 32) {
     throw new Error("x25519 private and public keys must be 32 bytes each");

@@ -12,9 +12,9 @@ Breaking changes:
 
 - `signData` no longer takes a `metadata` argument; the encoding and JSON-schema validation (and the `SignMetadata`, `Encoding` and `ERROR_BAD_DATA` exports) were removed.
 - `signData` no longer rejects data that starts with an Algorand protocol tag (`TX`, `MX`, `Program`, ...), and the `ERROR_TAGS_FOUND` export was removed. It signs exactly what it's given. **When signing data from an untrusted source, domain-separate it** so it can't form a transaction or other protocol message, for example by signing a hash of it, as [ARC-60](https://github.com/algorandfoundation/ARCs/blob/main/ARCs/arc-0060.md) does. The 1.x prefix check didn't provide that protection: it rejected harmless data that happened to start with a short tag (`"TEST"`, `"PSA"`, about 1 in 2,700 hashes), and it couldn't make raw untrusted bytes safe to sign.
-- `signAlgoTransaction` now rejects data that is not prefixed with the `TX` tag (throws `TxTagMissingError`). This catches an encoded transaction passed instead of its bytes to sign (algosdk's `txn.bytesToSign()`). In 1.x it signed any bytes.
-- `deriveChildNodePublic` now rejects the hardened index `harden(0)`. In 1.x it returned an incorrect key for it.
-- Only the package root can be imported; paths inside the package (e.g. `dist/...`) are no longer reachable.
+- `signAlgoTransaction` now rejects data that is not prefixed with the `TX` tag (throws `TxTagMissingError`). This catches an encoded transaction passed instead of its bytes to sign (algosdk's `txn.bytesToSign()`). In 1.x it signed any bytes. Data carrying another protocol tag (`MX`, `Program`, `ProgData`, ...) can therefore no longer be signed through this method; use `signData` for that.
+- `deriveChildNodePublic` now rejects the hardened index `harden(0)`. In 1.x it returned an incorrect key for it. `harden()` and the `deriveChildNodePrivate`/`deriveChildNodePublic` helpers also reject out-of-range indexes with a `RangeError` instead of failing later inside `Buffer` writes.
+- Only the package root can be imported; deep paths are no longer reachable through the package `exports` map (e.g. `@algorandfoundation/xhd-wallet-api/dist/sumo.facade.js`, which exposed libsodium-style helpers such as `crypto_secretbox_easy`, `crypto_kx_*` and `to_base64`).
 
 ## Variants
 

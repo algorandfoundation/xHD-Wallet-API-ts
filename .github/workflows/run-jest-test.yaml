@@ -26,8 +26,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Compile TypeScript
-        run: pnpm tsc
-
       - name: Run Jest tests
         run: pnpm test

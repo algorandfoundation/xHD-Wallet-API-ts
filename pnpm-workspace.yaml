@@ -1,2 +1,5 @@
+# pnpm settings live here (pnpm 11+). Kept minimal: this is not a workspace.
 allowBuilds:
+  # Optional dependency of jest-haste-map. Its native build is denied on purpose, so installs
+  # stay script-free; jest falls back to its pure-JS crawler.
   '@parcel/watcher': false

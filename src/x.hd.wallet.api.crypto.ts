@@ -47,7 +47,19 @@ export interface ChannelKeys {
     rx: Uint8Array
 }
 
-export const harden = (num: number): number => 0x80_00_00_00 + num;
+/** Index of the first hardened child key; also the exclusive upper bound of a non-hardened index */
+const FIRST_HARDENED_INDEX = 0x80_00_00_00
+
+/**
+ * Turns a BIP44 path level into its hardened form (2^31 + num).
+ * @throws RangeError if num is not an integer in [0, 2^31)
+ */
+export const harden = (num: number): number => {
+    if (!Number.isInteger(num) || num < 0 || num >= FIRST_HARDENED_INDEX) {
+        throw new RangeError(`harden() expects an integer in [0, ${FIRST_HARDENED_INDEX}), got ${num}`)
+    }
+    return FIRST_HARDENED_INDEX + num
+};
 
 const TX_TAG: Uint8Array = new TextEncoder().encode("TX")
 

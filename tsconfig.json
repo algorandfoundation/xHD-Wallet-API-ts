@@ -15,7 +15,7 @@
     "outDir": "./dist",
     "target": "ESNext",
     "skipLibCheck": true,
-    "types": ["node", "jest"],
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }

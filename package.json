@@ -17,8 +17,9 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm clean && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json -f",
-    "test": "pnpm clean && tsc && tsc-alias -p tsconfig.json -f && node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:cov": "pnpm clean && tsc && tsc-alias -p tsconfig.json -f && node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test": "pnpm clean && tsc -p tsconfig.spec.json && tsc-alias -p tsconfig.spec.json -f && node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:cov": "pnpm clean && tsc -p tsconfig.spec.json && tsc-alias -p tsconfig.spec.json -f && node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "prepack": "pnpm build"
   },
   "keywords": [],
   "author": "Algorand Foundation",

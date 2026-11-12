@@ -238,8 +238,20 @@ describe("Contextual Derivation & Signing", () => {
 
             it("\(FAIL) Derivation rejects an index outside uint32", async () => {
                 const xpub: Uint8Array = await cryptoService.deriveKey(rootKey, [harden(44), harden(283), harden(0), 0], false, BIP32DerivationType.Peikert)
-                await expect(deriveChildNodePublic(xpub, -1)).rejects.toHaveProperty("name", "RangeError")
-                await expect(deriveChildNodePrivate(rootKey, 2 ** 32)).rejects.toHaveProperty("name", "RangeError")
+                const indexError: RegExp = /index must be an integer in \[0, 4294967296\)/
+                await expect(deriveChildNodePublic(xpub, -1)).rejects.toThrow(indexError)
+                await expect(deriveChildNodePublic(xpub, 2 ** 32)).rejects.toThrow(indexError)
+                await expect(deriveChildNodePublic(xpub, 1.5)).rejects.toThrow(indexError)
+                await expect(deriveChildNodePrivate(rootKey, -1)).rejects.toThrow(indexError)
+                await expect(deriveChildNodePrivate(rootKey, 2 ** 32)).rejects.toThrow(indexError)
+            })
+
+            it("\(FAIL) harden rejects levels outside [0, 2^31)", () => {
+                expect(() => harden(-1)).toThrow(RangeError)
+                expect(() => harden(2 ** 31)).toThrow(RangeError)
+                expect(() => harden(1.5)).toThrow(RangeError)
+                expect(harden(0)).toBe(2 ** 31)
+                expect(harden(2 ** 31 - 1)).toBe(2 ** 32 - 1)
             })
 
             it("\(FAIL) Public derivation rejects hardened indexes, including harden(0)", async () => {

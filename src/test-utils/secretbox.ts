@@ -31,6 +31,7 @@ export function crypto_secretbox_open_easy(
     const decrypted = xsalsa20poly1305(key, nonce).decrypt(ciphertext);
     return decrypted;
   } catch (error) {
-    throw new Error("decryption failed");
+    // Keep the original failure as the cause (authentication failure, bad nonce/key length, ...)
+    throw new Error("decryption failed", { cause: error });
   }
 }
