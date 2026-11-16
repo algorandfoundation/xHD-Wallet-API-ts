@@ -11,9 +11,11 @@
     "declaration": true,
     "moduleResolution": "NodeNext",
     "module": "NodeNext",
+    "rootDir": "./src",
     "outDir": "./dist",
     "target": "ESNext",
     "skipLibCheck": true,
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }

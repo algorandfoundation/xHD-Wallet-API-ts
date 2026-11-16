@@ -5,6 +5,17 @@ import {
   crypto_scalarmult_ed25519_base_noclamp,
 } from "./sumo.facade.js";
 import BN from 'bn.js'
+import { FIRST_HARDENED_INDEX, MAX_INDEX_EXCLUSIVE } from "./constants.js";
+
+/**
+ * Rejects indexes that can't be encoded as a uint32, so callers get a clear error
+ * instead of a RangeError from Buffer.writeUInt32LE deep inside the derivation.
+ */
+function assertValidIndex(index: number): void {
+  if (!Number.isInteger(index) || index < 0 || index >= MAX_INDEX_EXCLUSIVE) {
+    throw new RangeError(`index must be an integer in [0, ${MAX_INDEX_EXCLUSIVE}), got ${index}`)
+  }
+}
 
 /**
  *
@@ -95,12 +106,14 @@ export async function deriveChildNodePrivate(
   index: number,
   g: number = 9
 ): Promise<Uint8Array> {
+  assertValidIndex(index)
+
   const kL: Buffer = Buffer.from(extendedKey.subarray(0, 32));
   const kR: Buffer = Buffer.from(extendedKey.subarray(32, 64));
   const cc: Uint8Array = extendedKey.subarray(64, 96);
 
   // Steps 1 & 3: Produce Z and child chain code, in accordance with hardening branching logic
-  const { z, childChainCode } = index < 0x80000000 ? derivedNonHardened(kL, cc, index) : deriveHardened(kL, kR, cc, index);
+  const { z, childChainCode } = index < FIRST_HARDENED_INDEX ? derivedNonHardened(kL, cc, index) : deriveHardened(kL, kR, cc, index);
 
   // Step 2: compute child private key
   const zLeft = z.subarray(0, 32); // 32 bytes
@@ -167,7 +180,8 @@ export async function deriveChildNodePrivate(
  * @returns - 64 bytes, being the 32 bytes of the child key (the new public key) followed by the 32 bytes of the chain code
  */
 export async function deriveChildNodePublic(extendedKey: Uint8Array, index: number, g: number = 9): Promise<Uint8Array> {
-  if (index > 0x80000000) throw Error('can not derive public key with harden')
+  assertValidIndex(index)
+  if (index >= FIRST_HARDENED_INDEX) throw Error('can not derive public key with harden')
 
   const pk: Buffer = Buffer.from(extendedKey.subarray(0, 32))
   const cc: Buffer = Buffer.from(extendedKey.subarray(32, 64))
