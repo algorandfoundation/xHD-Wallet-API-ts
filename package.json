@@ -51,7 +51,10 @@
     "@noble/hashes": "^2.4.0",
     "bn.js": "^5.2.2"
   },
-  "repository": "git@github.com:algorandfoundation/xHD-Wallet-API-ts.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/algorandfoundation/xHD-Wallet-API-ts.git"
+  },
   "files": [
     "dist",
     "README.md",
