@@ -20,10 +20,14 @@ function assertValidIndex(index: number): void {
 }
 
 /**
- * Writes `index` as a little-endian uint32 at `offset`. Callers must validate `index` with `assertValidIndex` first.
+ * Writes `index` as a little-endian uint32 at `offset`, throwing a `RangeError` if it isn't a valid index.
  */
 function writeUint32LE(data: Uint8Array, index: number, offset: number): void {
-  new DataView(data.buffer, data.byteOffset, data.byteLength).setUint32(offset, index, true);
+  assertValidIndex(index)
+  data[offset] = index & 0xff;
+  data[offset + 1] = (index >>> 8) & 0xff;
+  data[offset + 2] = (index >>> 16) & 0xff;
+  data[offset + 3] = (index >>> 24) & 0xff;
 }
 
 /**
