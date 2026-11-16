@@ -79,7 +79,7 @@ function assertValidDerivationType(derivationType: BIP32DerivationType): void {
     }
 }
 
-const TX_TAG: Uint8Array = new TextEncoder().encode("TX")
+const TX_TAG: Uint8Array = new Uint8Array([0x54, 0x58]) // "TX"
 
 function startsWith(message: Uint8Array, prefix: Uint8Array): boolean {
     return message.length >= prefix.length && prefix.every((byte, i) => message[i] === byte)

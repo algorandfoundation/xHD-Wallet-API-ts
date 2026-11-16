@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     // The published library must not depend on Node globals or built-ins (Buffer, crypto...)
-    "types": []
+    // or on DOM-only globals (window, document...)
+    "types": [],
+    "lib": ["ESNext"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.spec.ts", "src/test-utils", "node_modules", "dist"]
