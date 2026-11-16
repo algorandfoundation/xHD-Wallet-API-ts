@@ -50,11 +50,12 @@ jobs:
       - name: "Build"
         run: pnpm build
 
+      # Publishes to npm via trusted publishing (OIDC, needs `id-token: write`),
+      # so no NPM_TOKEN is required. Provenance is generated automatically.
       - name: "Semantic release"
         run: pnpm exec semantic-release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Merge Release -> Trunk
         uses: devmasx/merge-branch@854d3ac71ed1e9deb668e0074781b81fdd6e771f
