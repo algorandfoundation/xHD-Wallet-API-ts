@@ -1,3 +1,14 @@
+# [2.0.0-canary.2](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v2.0.0-canary.1...v2.0.0-canary.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* enhance error handling for derivation methods and update README for clarity ([eefc21b](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/eefc21b623c296bd2bd410bd98a5e0af01fa0ee8))
+* remove unnecessary util ([15e6f19](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/15e6f1990f93dcccb21a1ff7c7f1cea8792b8733))
+* simplify signing policy, fix public derivation and README vectors, switch to pnpm ([24e1ce1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/24e1ce11486d8c40841f1a145f80fb8dfe6bd181))
+* validate derivation indexes, decouple build from test tooling ([8b46887](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/8b46887c02f88f26d3487ceab7dfcb8bf551d14d))
+* validate derivation type and soft key index ([dfd6d0d](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/dfd6d0d5fa42a3d5be8c58f2687281ca1f007cf1))
+
 # [2.0.0-canary.1](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v1.0.3...v2.0.0-canary.1) (2026-01-12)
 
 

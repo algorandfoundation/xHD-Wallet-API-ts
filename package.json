@@ -1,6 +1,6 @@
 {
   "name": "@algorandfoundation/xhd-wallet-api",
-  "version": "2.0.0-canary.1",
+  "version": "2.0.0-canary.2",
   "description": "A Typescript implementation of Algorand ARC-52 extended hierarchical determinstic wallets.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -49,7 +49,10 @@
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0"
   },
-  "repository": "git@github.com:algorandfoundation/xHD-Wallet-API-ts.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/algorandfoundation/xHD-Wallet-API-ts.git"
+  },
   "files": [
     "dist",
     "README.md",
