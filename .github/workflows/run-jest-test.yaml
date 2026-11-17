@@ -26,5 +26,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # pnpm test compiles with tsconfig.spec.json (Node and jest types); only the build config
+      # ("types": []) catches the library depending on Node globals or built-ins like Buffer
+      - name: Build
+        run: pnpm build
+
       - name: Run Jest tests
         run: pnpm test
