@@ -1,3 +1,10 @@
+# [2.0.0-canary.3](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v2.0.0-canary.2...v2.0.0-canary.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* index validation for writeUint32LE ([2a1755a](https://github.com/algorandfoundation/xHD-Wallet-API-ts/commit/2a1755a7cb0f1ada020b283e1006950b269d0ada))
+
 # [2.0.0-canary.2](https://github.com/algorandfoundation/xHD-Wallet-API-ts/compare/v2.0.0-canary.1...v2.0.0-canary.2) (2026-11-16)
 
 
