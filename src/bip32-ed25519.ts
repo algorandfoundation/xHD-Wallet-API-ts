@@ -2,6 +2,7 @@ import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256, sha512 } from "@noble/hashes/sha2.js";
 import { concatBytes } from "@noble/hashes/utils.js";
+import { hmac as webHmac, sha512 as webSha512 } from "@noble/hashes/webcrypto.js";
 
 import {
   crypto_core_ed25519_add,
@@ -126,7 +127,7 @@ export async function deriveChildNodePrivate(
   const cc: Uint8Array = extendedKey.subarray(64, 96);
 
   // Steps 1 & 3: Produce Z and child chain code, in accordance with hardening branching logic
-  const { z, childChainCode } = index < FIRST_HARDENED_INDEX ? derivedNonHardened(kL, cc, index) : deriveHardened(kL, kR, cc, index);
+  const { z, childChainCode } = index < FIRST_HARDENED_INDEX ? await deriveNonHardened(kL, cc, index) : await deriveHardened(kL, kR, cc, index);
 
   // Step 2: compute child private key
   const zLeft = z.subarray(0, 32); // 32 bytes
@@ -200,7 +201,7 @@ export async function deriveChildNodePublic(extendedKey: Uint8Array, index: numb
 
   // Step 1: Compute Z
   data[0] = 0x02;
-  const z: Uint8Array = hmac(sha512, cc, data);
+  const z: Uint8Array = await webHmac(webSha512, cc, data);
 
   // Step 2: Compute child public key
   const zL: Uint8Array = trunc_256_minus_g_bits(z.subarray(0, 32), g)
@@ -220,7 +221,7 @@ export async function deriveChildNodePublic(extendedKey: Uint8Array, index: numb
 
   // Step 3: Compute child chain code
   data[0] = 0x03;
-  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const fullChildChainCode: Uint8Array = await webHmac(webSha512, cc, data);
   const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
   return concatBytes(crypto_core_ed25519_add(p, pk), childChainCode)
@@ -235,22 +236,22 @@ export async function deriveChildNodePublic(extendedKey: Uint8Array, index: numb
  * @param index - non-hardened ( < 2^31 ) index
  * @returns - (z, c) where z is the 64-byte child key and c is the chain code
  */
-function derivedNonHardened(
+async function deriveNonHardened(
   kl: Uint8Array,
   cc: Uint8Array,
   index: number
-): { z: Uint8Array; childChainCode: Uint8Array } {
+): Promise<{ z: Uint8Array; childChainCode: Uint8Array }> {
   const data: Uint8Array = new Uint8Array(1 + 32 + 4);
   writeUint32LE(data, index, 1 + 32);
 
-  var pk = crypto_scalarmult_ed25519_base_noclamp(kl);
+  const pk = crypto_scalarmult_ed25519_base_noclamp(kl);
   data.set(pk, 1);
 
   data[0] = 0x02;
-  const z: Uint8Array = hmac(sha512, cc, data);
+  const z: Uint8Array = await webHmac(webSha512, cc, data);
 
   data[0] = 0x03;
-  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const fullChildChainCode: Uint8Array = await webHmac(webSha512, cc, data);
   const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
   return { z, childChainCode };
@@ -266,21 +267,21 @@ function derivedNonHardened(
  * @param index - hardened ( >= 2^31 ) index
  * @returns - (z, c) where z is the 64-byte child key and c is the chain code
  */
-function deriveHardened(
+async function deriveHardened(
   kl: Uint8Array,
   kr: Uint8Array,
   cc: Uint8Array,
   index: number
-): { z: Uint8Array; childChainCode: Uint8Array } {
+): Promise<{ z: Uint8Array; childChainCode: Uint8Array }> {
   const data: Uint8Array = new Uint8Array(1 + 64 + 4);
   writeUint32LE(data, index, 1 + 64);
   data.set(kl, 1);
   data.set(kr, 1 + 32);
 
   data[0] = 0x00;
-  const z: Uint8Array = hmac(sha512, cc, data);
+  const z: Uint8Array = await webHmac(webSha512, cc, data);
   data[0] = 0x01;
-  const fullChildChainCode: Uint8Array = hmac(sha512, cc, data);
+  const fullChildChainCode: Uint8Array = await webHmac(webSha512, cc, data);
   const childChainCode: Uint8Array = fullChildChainCode.subarray(32, 64);
 
   return { z, childChainCode };
